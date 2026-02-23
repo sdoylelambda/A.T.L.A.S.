@@ -1,3 +1,6 @@
+# Moved to hybrid_stt.py
+
+
 # from modules.stt.faster_whisper_stt import FasterWhisperSTT
 # from modules.stt.whisper_stt import WhisperSTT
 # from .factory import create_stt

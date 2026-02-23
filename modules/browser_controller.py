@@ -10,9 +10,6 @@ class BrowserController:
         self.page = None
         print("[Browser] Lazy init ready")
 
-        # When closing browser window and searching google get the following error:
-        # [Error]: Page.evaluate: Target page, context or browser has been closed
-
     # ==========================================
     # Ensure browser exists
     # ==========================================
