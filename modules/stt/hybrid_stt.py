@@ -1,6 +1,10 @@
+import numpy as np
 import whisper
 from faster_whisper import WhisperModel
+import time
 
+
+SHORT_THRESHOLD_SECONDS = 10  # use whisper for <10s, faster-whisper for longer
 
 class HybridSTT:
     def __init__(self, whisper_model="small", fw_model="small", use_gpu=False):
@@ -16,24 +20,192 @@ class HybridSTT:
             compute_type="int8" if not use_gpu else "float16"
         )
 
-    def transcribe_short(self, audio_path):
+    def _to_float32(self, audio_bytes):
+        """Convert raw int16 bytes to normalized float32 numpy array."""
+        return np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+
+    def transcribe(self, audio_bytes, duration):
+        """Route to whisper or faster-whisper based on clip duration."""
+        audio_np = self._to_float32(audio_bytes)
+
+        if duration > SHORT_THRESHOLD_SECONDS:
+            print(f"[STT] Using Whisper ({duration:.1f}s)")
+            return self._transcribe_short(audio_np)
+        else:
+            print(f"[STT] Using Faster-Whisper ({duration:.1f}s)")
+            return self._transcribe_long(audio_np)
+
+    def _transcribe_short(self, audio_np):
+        transcribe_time = time.time()
         result = self.whisper.transcribe(
-            audio_path,
+            audio_np,
             language="en",
             temperature=0.0,
             no_speech_threshold=0.6,
-            logprob_threshold=-1.0
+            logprob_threshold=-1.0,
+            fp16=False
         )
+        transcribe_time = time.time() - transcribe_time
+        print('[STT] Transcription time: {:.1f}s'.format(transcribe_time))
         return result.get("text", "").strip()
 
-    def transcribe_long(self, audio_path):
+    def _transcribe_long(self, audio_np):
+        transcribe_time = time.time()
         segments, _ = self.faster.transcribe(
-            audio_path,
+            audio_np,
             language="en",
             beam_size=1,
             vad_filter=True
         )
+        transcribe_time = time.time() - transcribe_time
+        print('[STT] Transcription time: {:.1f}s'.format(transcribe_time))
         return " ".join(seg.text for seg in segments).strip()
+
+
+
+# import whisper
+# from faster_whisper import WhisperModel
+#
+#
+# class HybridSTT:
+#     def __init__(self, whisper_model="small", fw_model="small", use_gpu=False):
+#         device = "cuda" if use_gpu else "cpu"
+#
+#         print("[STT] Loading Whisper...")
+#         self.whisper = whisper.load_model(whisper_model, device=device)
+#
+#         print("[STT] Loading Faster-Whisper...")
+#         self.faster = WhisperModel(
+#             fw_model,
+#             device=device,
+#             compute_type="int8" if not use_gpu else "float16"
+#         )
+#
+#     def transcribe_short(self, audio_path):
+#         result = self.whisper.transcribe(
+#             audio_path,
+#             language="en",
+#             temperature=0.0,
+#             no_speech_threshold=0.6,
+#             logprob_threshold=-1.0
+#         )
+#         return result.get("text", "").strip()
+#
+#     def transcribe_long(self, audio_path):
+#         segments, _ = self.faster.transcribe(
+#             audio_path,
+#             language="en",
+#             beam_size=1,
+#             vad_filter=True
+#         )
+#         return " ".join(seg.text for seg in segments).strip()
+
+#
+#
+# import whisper
+# import faster_whisper
+# import numpy as np
+# import time
+# from faster_whisper import WhisperModel
+# import os
+# import torch
+# import yaml
+#
+#
+# class HybridSTT:
+#     def __init__(self, whisper_model="small", fw_model="small", use_gpu=False, config):
+#         self.whisper_model = whisper.load_model(whisper_model, device="cuda" if use_gpu else "cpu")
+#         # Load any other model for hybrid STT here
+#         cpu_threads = config["system"]["cpu_threads"]
+#         os.environ["OMP_NUM_THREADS"] = str(cpu_threads)
+#
+#         device = "cuda" if config["system"].get("use_gpu", False) else "cpu"
+#
+#         print(f"[STT] Loading Faster Whisper model '{config['stt']['model']}' on {device}...")
+#         self.model = WhisperModel(
+#             model_size_or_path=config["stt"]["model"],
+#             device=device,
+#             compute_type="int8",
+#             cpu_threads=cpu_threads
+#         )
+#
+#         print("[STT] Faster Whisper loaded.")
+#
+#     def pcm_bytes_to_numpy(self, audio_bytes, sample_rate=16000):
+#         """
+#         Converts raw PCM bytes to numpy array of float32 in [-1.0, 1.0].
+#         """
+#         audio = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32)
+#         audio /= 32768.0  # normalize
+#         return audio
+#
+#     def transcribe_short(self, audio_bytes, sample_rate=16000):
+#
+#         audio_np = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32768.0
+#
+#         if len(audio_np) < 16000 * 0.5:  # less than 0.5 seconds
+#             print("[STT] Audio too short, skipping.")
+#             return ""
+#         start_time = time.time()
+#         audio_float = audio_bytes.astype(np.float32) / 32768.0  # int16 -> float32
+#         segments, _ = self.model.transcribe(
+#             audio_float,
+#             language="en",
+#             temperature=0.0,  # deterministic output
+#             suppress_blank=True,  # avoid extra blanks
+#             word_timestamps=False,  # we don’t need timestamps
+#             max_new_tokens=400,  # limit hallucination - less than 500 - smaller = fewer hallucinations
+#             beam_size=1  # turn up to make more accurate at expense of speed. 1-5
+#         )
+#         print("[STT] Faster Whisper Used.")
+#         return " ".join([seg.text for seg in segments])
+#
+#     def transcribe_long(self, audio_bytes, sample_rate=16000):
+#         audio = self.pcm_bytes_to_numpy(audio_bytes, sample_rate)
+#         # For longer audio, you could chunk or pass directly
+#         result = self.whisper_model.transcribe(audio, fp16=False)
+#         return result.get("text", "").strip()
+
+
+
+
+
+# import whisper
+# from faster_whisper import WhisperModel
+#
+#
+# class HybridSTT:
+#     def __init__(self, whisper_model="small", fw_model="small", use_gpu=False):
+#         device = "cuda" if use_gpu else "cpu"
+#
+#         print("[STT] Loading Whisper...")
+#         self.whisper = whisper.load_model(whisper_model, device=device)
+#
+#         print("[STT] Loading Faster-Whisper...")
+#         self.faster = WhisperModel(
+#             fw_model,
+#             device=device,
+#             compute_type="int8" if not use_gpu else "float16"
+#         )
+#
+#     def transcribe_short(self, audio_path):
+#         result = self.whisper.transcribe(
+#             audio_path,
+#             language="en",
+#             temperature=0.0,
+#             no_speech_threshold=0.6,
+#             logprob_threshold=-1.0
+#         )
+#         return result.get("text", "").strip()
+#
+#     def transcribe_long(self, audio_path):
+#         segments, _ = self.faster.transcribe(
+#             audio_path,
+#             language="en",
+#             beam_size=1,
+#             vad_filter=True
+#         )
+#         return " ".join(seg.text for seg in segments).strip()
 
 
 

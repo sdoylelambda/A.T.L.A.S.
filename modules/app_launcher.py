@@ -98,33 +98,46 @@ class AppLauncher:
         # ]
 
     # ---------- Google Search ----------
-    def google_search(self, spoken_text: str) -> bool:
-        words = spoken_text.split()
-
-        if not words:
-            return False
-
-        if words[0] == "google":
-            query = " ".join(words[1:])
-        elif spoken_text.startswith("search for "):
-            query = spoken_text.replace("search for ", "", 1)
-        elif spoken_text.startswith("look up "):
-            query = spoken_text.replace("look up ", "", 1)
-        else:
-            return False
-
-        if not query:
-            print("[Launcher] No search query detected.")
-            return False
-
-        print(f"[Launcher] Google searching: {query}")
-        encoded_query = urllib.parse.quote_plus(query)
-
-        subprocess.Popen([
-            "xdg-open",
-            f"https://www.google.com/search?q={encoded_query}"
-        ])
-        return True
+    def google_search(self, command):
+        # Might be redundant
+        # Define Google search triggers
+        google_triggers = ["search google for", "google", "look up", "search for"]
+        for trigger in google_triggers:
+            if trigger in command:
+                # Extract query after the trigger phrase
+                query = command.split(trigger, 1)[1].strip()
+                if query:
+                    # speak(f"Searching Google for {query}")
+                    os.system(f"xdg-open 'https://www.google.com/search?q={query.replace(' ', '+')}'")
+                    return True
+        return False
+    # def google_search(self, spoken_text: str) -> bool:
+    #     words = spoken_text.split()
+    #
+    #     if not words:
+    #         return False
+    #
+    #     if words[0] == "google":
+    #         query = " ".join(words[1:])
+    #     elif spoken_text.startswith("search for "):
+    #         query = spoken_text.replace("search for ", "", 1)
+    #     elif spoken_text.startswith("look up "):
+    #         query = spoken_text.replace("look up ", "", 1)
+    #     else:
+    #         return False
+    #
+    #     if not query:
+    #         print("[Launcher] No search query detected.")
+    #         return False
+    #
+    #     print(f"[Launcher] Google searching: {query}")
+    #     encoded_query = urllib.parse.quote_plus(query)
+    #
+    #     subprocess.Popen([
+    #         "xdg-open",
+    #         f"https://www.google.com/search?q={encoded_query}"
+    #     ])
+    #     return True
 
     # ---------- Open App ----------
     def open_app(self, spoken_text: str) -> str:

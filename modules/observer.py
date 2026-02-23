@@ -1,108 +1,425 @@
 import yaml
 import time
+import asyncio
 from modules.ears import Ears
 from modules.stt.hybrid_stt import HybridSTT
 from modules.tts import TTSModule
 from modules.app_launcher import AppLauncher
 
-
 class Observer:
-    def __init__(self, face_controller, window_controller):
+    def __init__(self, face_controller, window_controller, config):
+        self.face = face_controller
         self.window_controller = window_controller
-        with open("config.yaml") as f:
-            config = yaml.safe_load(f)
+        self.paused = False
 
-        self.ears = Ears(
-            samplerate=config["audio"]["samplerate"],
-            mic_index=config["audio"].get("mic_index"),
-            duration=7
-        )
-
+        self.ears = Ears()
         self.stt = HybridSTT(
             whisper_model="small",
             fw_model="small",
-            use_gpu=config["system"].get("use_gpu", False)
+            use_gpu=config["system"].get("use_gpu", False),
         )
-
         self.mouth = TTSModule(use_mock=config["audio"].get("use_mock", False))
         self.launcher = AppLauncher(window_controller)
-        self.face = face_controller
-        self.paused = False
 
-        # Initial greeting
+    async def listen_and_respond(self):
+        # Greeting
         self.face.set_state("thinking")
-        print("[Observer] Listening and responding...")
-        self.mouth.speak("Hello sir, what can I do for you.")
-
-    def listen_and_respond(self):
+        await asyncio.to_thread(self.mouth.speak, "Hello sir, what can I do for you.")
         self.face.set_state("listening")
+        print("[Observer] Listening and responding...")
+
         while True:
-            # Set visual state
-            if self.paused:
-                self.face.set_state("sleeping")  # yellow, slow pulse/wobble
-            else:
-                self.face.set_state("listening")
-
-            audio_path, duration = self.ears.listen()
-
-            if not audio_path:
-                time.sleep(0.02)
-                continue
-
             try:
-                # Transcribe audio
-                if duration < 5:
-                    text = self.stt.transcribe_short(audio_path)
+                # Face state based on pause
+                if self.paused:
+                    self.face.set_state("sleeping")
                 else:
-                    text = self.stt.transcribe_long(audio_path)
+                    self.face.set_state("listening")
+
+                # 🎧 Listen
+                audio_bytes, duration = await self.ears.listen()
+
+                if not audio_bytes:
+                    await asyncio.sleep(0.05)
+                    continue
+
+                # 🧠 STT
+                text = self.stt.transcribe(audio_bytes, duration)
 
                 if not text:
                     continue
 
-                text = text.lower()
+                text = text.lower().strip()
                 print(f"[Heard]: {text}")
 
-                # Hot word to resume
+                # 🔑 Wake hot words
                 if "jarvis" in text or "you there" in text:
                     if self.paused:
                         self.paused = False
-                        self.mouth.speak("I'm back online.")
+                        self.face.set_state("thinking")
+                        await asyncio.to_thread(self.mouth.speak, "I'm back online.")
                         self.face.set_state("listening")
-                    continue  # skip command execution this turn
+                    continue
 
-                # Hot word to pause
+                # 😴 Pause command
                 if "take a break" in text:
                     self.paused = True
-                    self.mouth.speak("Going on a break.")
                     self.face.set_state("sleeping")
+                    await asyncio.to_thread(self.mouth.speak, "Going on a break.")
                     continue
 
                 if self.paused:
-                    continue  # skip commands while paused
+                    continue
 
-                # Execute normal commands
+                # 🚀 Command handling
                 handled = self.launcher.handle_command(text)
+
                 if handled:
                     current_app = self.launcher.get_current_app()
                     if current_app and current_app != "browser":
                         self.window_controller.update_active_window(current_app)
 
-                if not handled:
-                    self.face.set_state("error")
-                    self.mouth.speak("Command not recognized.")
-                    self.listen_and_respond()
+                    self.face.set_state("thinking")
+                    await asyncio.to_thread(self.mouth.speak, f"I have: {text}")
+                    self.face.set_state("listening")
 
-                self.face.set_state("thinking")
-                print(f"[Heard]: {text}")
-                self.mouth.speak(f"I have: {text}")
+                else:
+                    self.face.set_state("error")
+                    await asyncio.to_thread(self.mouth.speak, "Command not recognized.")
+                    self.face.set_state("listening")
 
             except Exception as e:
-                print(f"[Error]: {e}")
+                print(f"[Observer Error]: {e}")
                 self.face.set_state("error")
 
-            # Small sleep for CPU/GPU smoothness
-            time.sleep(0.01)
+            await asyncio.sleep(0.01)
 
+
+
+
+
+
+
+# import asyncio
+# import whisper
+#
+# class Observer:
+#     def __init__(self, ears):
+#         self.ears = ears
+#         self.model = whisper.load_model("small", device="cpu")  # or tiny/medium
+#
+#     async def listen_and_respond(self):
+#         print("[Observer] Listening and responding...")
+#
+#         audio_bytes, duration = await self.ears.listen(max_duration=30.0)
+#         if not audio_bytes:
+#             print("[Observer] No speech detected.")
+#             return
+#
+#         print(f"[Observer] Captured {duration:.2f}s of audio.")
+#
+#         # Save temp WAV file
+#         import tempfile, wave
+#         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+#             filename = f.name
+#             wf = wave.open(filename, "wb")
+#             wf.setnchannels(1)
+#             wf.setsampwidth(2)
+#             wf.setframerate(self.ears.rate)
+#             wf.writeframes(audio_bytes)
+#             wf.close()
+#
+#         # Transcribe English only
+#         result = self.model.transcribe(filename, language="en")
+#         text = result["text"].strip()
+#         print(f"[Heard]: {text}")
+#
+#         # Here you can integrate with Launcher/TTS/etc.
+#         if text:
+#             print(f"[TTS] I heard: {text}")
+#         else:
+#             print("[TTS] Command not recognized.")
+
+
+
+
+# # observer_async.py
+# import asyncio
+# import time
+# from modules.stt.hybrid_stt import HybridSTT
+# from modules.tts import TTSModule
+# from modules.app_launcher import AppLauncher
+# from modules.ears import Ears
+#
+# class Observer:
+#     def __init__(self, face_controller, window_controller, config):
+#         self.face = face_controller
+#         self.window_controller = window_controller
+#         self.paused = False
+#
+#         self.ears = Ears()
+#         self.stt = HybridSTT(
+#             whisper_model="small",
+#             fw_model="small",
+#             use_gpu=config["system"].get("use_gpu", False)
+#         )
+#         self.mouth = TTSModule(use_mock=config["audio"].get("use_mock", False))
+#         self.launcher = AppLauncher(window_controller)
+#
+#     async def listen_and_respond(self):
+#         # Initial greeting
+#         self.face.set_state("thinking")
+#         await asyncio.to_thread(self.mouth.speak, "Hello sir, what can I do for you.")
+#         self.face.set_state("listening")
+#         print("[Observer] Listening and responding...")
+#
+#         while True:
+#             if self.paused:
+#                 self.face.set_state("sleeping")
+#             else:
+#                 self.face.set_state("listening")
+#
+#             audio_bytes, duration = await self.ears.listen()
+#             if not audio_bytes:
+#                 await asyncio.sleep(0.05)
+#                 continue
+#
+#             try:
+#                 if duration < 5:
+#                     text = self.stt.transcribe_short(audio_bytes)
+#                 else:
+#                     text = self.stt.transcribe_long(audio_bytes)
+#
+#                 if not text:
+#                     continue
+#
+#                 text = text.lower()
+#                 print(f"[Heard]: {text}")
+#
+#                 # Hotwords
+#                 if "jarvis" in text or "you there" in text:
+#                     if self.paused:
+#                         self.paused = False
+#                         await asyncio.to_thread(self.mouth.speak, "I'm back online.")
+#                         self.face.set_state("listening")
+#                     continue
+#
+#                 if "take a break" in text:
+#                     self.paused = True
+#                     await asyncio.to_thread(self.mouth.speak, "Going on a break.")
+#                     self.face.set_state("sleeping")
+#                     continue
+#
+#                 if self.paused:
+#                     continue
+#
+#                 handled = self.launcher.handle_command(text)
+#                 if handled:
+#                     current_app = self.launcher.get_current_app()
+#                     if current_app and current_app != "browser":
+#                         self.window_controller.update_active_window(current_app)
+#                     self.face.set_state("thinking")
+#                     await asyncio.to_thread(self.mouth.speak, f"I have: {text}")
+#                 else:
+#                     self.face.set_state("error")
+#                     await asyncio.to_thread(self.mouth.speak, "Command not recognized.")
+#
+#             except Exception as e:
+#                 print(f"[Observer Error]: {e}")
+#                 self.face.set_state("error")
+#
+#             await asyncio.sleep(0.01)
+
+
+
+
+
+# import yaml
+# import time
+# import asyncio
+# from modules.ears import Ears
+# from modules.stt.hybrid_stt import HybridSTT
+# from modules.tts import TTSModule
+# from modules.app_launcher import AppLauncher
+#
+# class Observer:
+#     def __init__(self, face_controller, window_controller):
+#         self.face = face_controller
+#         self.window_controller = window_controller
+#         with open("config.yaml") as f:
+#             config = yaml.safe_load(f)
+#
+#         self.ears = Ears()
+#         self.stt = HybridSTT(
+#             whisper_model="small",
+#             fw_model="small",
+#             use_gpu=config["system"].get("use_gpu", False)
+#         )
+#         self.mouth = TTSModule(use_mock=config["audio"].get("use_mock", False))
+#         self.launcher = AppLauncher(window_controller)
+#         self.paused = False
+#
+#     async def listen_and_respond(self):
+#         # Initial greeting
+#         self.face.set_state("thinking")
+#         print("[Observer] Listening and responding...")
+#         await asyncio.to_thread(self.mouth.speak, "Hello sir, what can I do for you.")
+#
+#         while True:
+#             if self.paused:
+#                 self.face.set_state("sleeping")
+#             else:
+#                 self.face.set_state("listening")
+#
+#             audio_bytes, duration = await self.ears.listen(max_duration=3.0, silence_duration=0.4)
+#             if not audio_bytes:
+#                 await asyncio.sleep(0.05)
+#                 continue
+#
+#             # Choose STT method based on duration
+#             try:
+#                 if duration < 5:
+#                     text = self.stt.transcribe_short(audio_bytes)
+#                 else:
+#                     text = self.stt.transcribe_long(audio_bytes)
+#             except Exception as e:
+#                 print(f"[STT Error]: {e}")
+#                 continue
+#
+#             if not text:
+#                 continue
+#
+#             text = text.lower()
+#             print(f"[Heard]: {text}")
+#
+#             # Hotwords
+#             if "jarvis" in text or "you there" in text:
+#                 if self.paused:
+#                     self.paused = False
+#                     self.face.set_state("listening")
+#                     await asyncio.to_thread(self.mouth.speak, "I'm back online.")
+#                 continue
+#
+#             if "take a break" in text:
+#                 self.paused = True
+#                 self.face.set_state("sleeping")
+#                 await asyncio.to_thread(self.mouth.speak, "Going on a break.")
+#                 continue
+#
+#             # Handle commands
+#             handled = self.launcher.handle_command(text)
+#             if handled:
+#                 current_app = self.launcher.get_current_app()
+#                 if current_app and current_app != "browser":
+#                     self.window_controller.update_active_window(current_app)
+#                 self.face.set_state("thinking")
+#                 await asyncio.to_thread(self.mouth.speak, f"I have: {text}")
+#             else:
+#                 self.face.set_state("error")
+#                 await asyncio.to_thread(self.mouth.speak, "Command not recognized.")
+#
+#             await asyncio.sleep(0.01)
+
+
+
+
+
+
+
+
+
+
+# import yaml
+# import time
+# from modules.ears import Ears
+# from modules.stt.hybrid_stt import HybridSTT
+# from modules.tts import TTSModule
+# from modules.app_launcher import AppLauncher
+#
+# class Observer:
+#     def __init__(self, face_controller, window_controller):
+#         self.window_controller = window_controller
+#         with open("config.yaml") as f:
+#             config = yaml.safe_load(f)
+#
+#         self.ears = Ears(
+#             # samplerate=config["audio"]["samplerate"],
+#             # mic_index=config["audio"].get("mic_index")
+#         )
+#
+#         self.stt = HybridSTT(
+#             whisper_model="small",
+#             fw_model="small",
+#             use_gpu=config["system"].get("use_gpu", False)
+#         )
+#
+#         self.mouth = TTSModule(use_mock=config["audio"].get("use_mock", False))
+#         self.launcher = AppLauncher(window_controller)
+#         self.face = face_controller
+#         self.paused = False
+#
+#         # Initial greeting
+#         self.face.set_state("thinking")
+#         print("[Observer] Listening and responding...")
+#         self.mouth.speak("Hello sir, what can I do for you.")
+#
+#     async def listen_and_respond(self):
+#         self.face.set_state("listening")
+#         while True:
+#             if self.paused:
+#                 self.face.set_state("sleeping")
+#             else:
+#                 self.face.set_state("listening")
+#
+#             print("STARTING EARS.LISTEN")
+#             audio_path, duration = await self.ears.listen()
+#             print("COMPLETED EARS.LISTEN")
+#
+#             if not audio_path:
+#                 time.sleep(0.1)  # small pause for background noise
+#                 continue
+#
+#             try:
+#                 text = self.stt.transcribe_short(audio_path) if duration < 5 else self.stt.transcribe_long(audio_path)
+#                 if not text:
+#                     continue
+#
+#                 text = text.lower()
+#                 print(f"[Heard]: {text}")
+#
+#                 # pause/resume hotwords
+#                 if "jarvis" in text or "you there" in text:
+#                     if self.paused:
+#                         self.paused = False
+#                         self.mouth.speak("I'm back online.")
+#                         self.face.set_state("listening")
+#                     continue
+#
+#                 if "take a break" in text:
+#                     self.paused = True
+#                     self.mouth.speak("Going on a break.")
+#                     self.face.set_state("sleeping")
+#                     continue
+#
+#                 if self.paused:
+#                     continue
+#
+#                 handled = self.launcher.handle_command(text)
+#                 if handled:
+#                     current_app = self.launcher.get_current_app()
+#                     if current_app and current_app != "browser":
+#                         self.window_controller.update_active_window(current_app)
+#                     self.face.set_state("thinking")
+#                     self.mouth.speak(f"I have: {text}")
+#                 else:
+#                     self.face.set_state("error")
+#                     self.mouth.speak("Command not recognized.")
+#
+#             except Exception as e:
+#                 print(f"[Error]: {e}")
+#                 self.face.set_state("error")
+#
+#             time.sleep(0.01)  # CPU/GPU smoothness
 
 
 
