@@ -31,3 +31,5 @@ Primary Computer sends plan to work station.
 Work station opens Pycharm, creates project. Sends screenshot to cell phone.
 User views screenshot on cellphone then says run it.
 Project runs on secondary computer. (Reduces load on primary computer, periphals, monitor, etc - Primary computer free to function as normal without interference.)
+
+This has all extra notes and files.
