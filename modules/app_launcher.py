@@ -53,6 +53,60 @@ class AppLauncher:
             },
         }
 
+
+    # ---------- Google Search ----------
+    def google_search(self, command):
+        # Might be redundant
+        # Define Google search triggers
+        google_triggers = ["search google for", "google", "look up", "search for"]
+        for trigger in google_triggers:
+            if trigger in command:
+                # Extract query after the trigger phrase
+                query = command.split(trigger, 1)[1].strip()
+                if query:
+                    # speak(f"Searching Google for {query}")
+                    os.system(f"xdg-open 'https://www.google.com/search?q={query.replace(' ', '+')}'")
+                    return True
+        return False
+
+
+
+    # ---------- Open App ----------
+    def open_app(self, spoken_text: str) -> str:
+        for app_name, app_info in self.apps.items():
+            for alias in app_info["aliases"]:
+                if alias in spoken_text:      #        Why is the word in the sentence, but doesn't execute?
+                    print(f"[Launcher] Launching {app_name}...")
+                    os.system(f'"{app_info["path"]}" &')
+                    self.current_app = app_name
+                    self.window_controller.update_active_window(app_name)
+                    return f"Opening {app_name}"
+
+        return False
+
+    # ---------- Main Router ----------
+    async def handle_command(self, spoken_text: str) -> bool:
+        spoken_text = spoken_text.lower().strip()
+
+        # Native app launch first
+        if self.open_app(spoken_text):
+            self.current_app = self.get_current_app()
+            return True
+
+        # Browser search
+        if await self.browser_controller.handle_command(spoken_text):
+            if self.current_app != "browser":
+                self.window_controller.update_active_window("browser")
+            self.current_app = "browser"
+            return True
+
+        # Hotkeys
+        if self.current_app and self.current_app != "browser":
+            if self.window_controller.send_command(spoken_text):
+                return True
+
+        return False
+
     # Moved to browser_controller.py
 
     #     self.google_triggers = [
@@ -90,77 +144,40 @@ class AppLauncher:
     #         f"https://www.google.com/search?q={encoded_query}"
     #     ])
     #     return True
-        # self.google_triggers = [
-        #     "search google for",
-        #     "google",
-        #     "look up",
-        #     "search for"
-        # ]
+    # self.google_triggers = [
+    #     "search google for",
+    #     "google",
+    #     "look up",
+    #     "search for"
+    # ]
 
-    # ---------- Google Search ----------
-    def google_search(self, spoken_text: str) -> bool:
-        words = spoken_text.split()
-
-        if not words:
-            return False
-
-        if words[0] == "google":
-            query = " ".join(words[1:])
-        elif spoken_text.startswith("search for "):
-            query = spoken_text.replace("search for ", "", 1)
-        elif spoken_text.startswith("look up "):
-            query = spoken_text.replace("look up ", "", 1)
-        else:
-            return False
-
-        if not query:
-            print("[Launcher] No search query detected.")
-            return False
-
-        print(f"[Launcher] Google searching: {query}")
-        encoded_query = urllib.parse.quote_plus(query)
-
-        subprocess.Popen([
-            "xdg-open",
-            f"https://www.google.com/search?q={encoded_query}"
-        ])
-        return True
-
-    # ---------- Open App ----------
-    def open_app(self, spoken_text: str) -> str:
-        for app_name, app_info in self.apps.items():
-            for alias in app_info["aliases"]:
-                if alias in spoken_text:      #        Why is the word in the sentence, but doesn't execute?
-                    print(f"[Launcher] Launching {app_name}...")
-                    os.system(f'"{app_info["path"]}" &')
-                    self.current_app = app_name
-                    self.window_controller.update_active_window(app_name)
-                    return f"Opening {app_name}"
-
-        return False
-
-    # ---------- Main Router ----------
-    def handle_command(self, spoken_text: str) -> bool:
-        spoken_text = spoken_text.lower().strip()
-
-        # Browser first
-        if self.browser_controller.handle_command(spoken_text):
-            if self.current_app != "browser":
-                self.window_controller.update_active_window("browser")
-            self.current_app = "browser"
-            return True
-
-        # Native app launch
-        if self.open_app(spoken_text):
-            self.current_app = self.get_current_app()
-            return True
-
-        # Hotkeys
-        if self.current_app and self.current_app != "browser":
-            if self.window_controller.send_command(spoken_text):
-                return True
-
-        return False
+    # def google_search(self, spoken_text: str) -> bool:
+    #     words = spoken_text.split()
+    #
+    #     if not words:
+    #         return False
+    #
+    #     if words[0] == "google":
+    #         query = " ".join(words[1:])
+    #     elif spoken_text.startswith("search for "):
+    #         query = spoken_text.replace("search for ", "", 1)
+    #     elif spoken_text.startswith("look up "):
+    #         query = spoken_text.replace("look up ", "", 1)
+    #     else:
+    #         return False
+    #
+    #     if not query:
+    #         print("[Launcher] No search query detected.")
+    #         return False
+    #
+    #     print(f"[Launcher] Google searching: {query}")
+    #     encoded_query = urllib.parse.quote_plus(query)
+    #
+    #     subprocess.Popen([
+    #         "xdg-open",
+    #         f"https://www.google.com/search?q={encoded_query}"
+    #     ])
+    #     return True
 
     # def handle_command(self, spoken_text: str) -> bool:
     #     spoken_text = spoken_text.lower()

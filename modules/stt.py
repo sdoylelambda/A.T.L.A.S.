@@ -1,85 +1,89 @@
-import whisper
-import os
-import speech_recognition as sr  # Remove this if possible - google api - perhaps whisper instead
-import sounddevice as sd
-from scipy.io.wavfile import write
+# This logic is now in ears.py
 
 
-class STT:
-    def __init__(self, use_mock=False, mic_index=0, samplerate=16000, duration=15):
-        """
-        Speech-to-Text class
-        - use_mock: True uses input() instead of microphone
-        - mic_index: optional, select a specific microphone
-        - samplerate: recording sample rate
-        - duration: default recording duration
-        """
-        device = "cpu"  # force CPU usage
-        self.use_mock = use_mock
-        self.duration = duration
-        self.samplerate = samplerate
-        self.mic_index = mic_index
 
-        if not use_mock:
-            print("[Ears] Loading Whisper model...")
-            self.model = whisper.load_model("small", device=device)  # options: tiny, base, small, medium, large
-            print("[Ears] Whisper model loaded.")
-
-            self.recognizer = sr.Recognizer()
-            self.microphone = self._find_microphone(mic_index)
-
-    def _find_microphone(self, mic_index):
-        """Automatically find a working microphone if not specified."""
-        mic_list = sr.Microphone.list_microphone_names()
-        if mic_index is not None:
-            if mic_index < len(mic_list):
-                print(f"[Ears] Using mic index {mic_index}: {mic_list[mic_index]}")
-                return sr.Microphone(device_index=mic_index)
-            else:
-                print("[Ears] Mic index out of range, falling back to default.")
-
-        # fallback: pick the first working mic
-        for i, name in enumerate(mic_list):
-            try:
-                with sr.Microphone(device_index=i) as source:
-                    print(f"[Ears] Found working mic {i}: {name}")
-                    return sr.Microphone(device_index=i)
-            except OSError:
-                continue
-
-        raise RuntimeError("No working microphone found.")
-
-    def ears(self, duration=None, filename="capture.wav"):
-        """Record audio from microphone and return the transcribed text."""
-        if self.use_mock:
-            return input("Simulated audio: ")
-
-        duration = duration or self.duration
-        print("[Ears] Listening... Please speak now.")
-
-        # Record audio
-        audio = sd.rec(int(duration * self.samplerate),
-                       samplerate=self.samplerate,
-                       channels=1,
-                       dtype='int16',
-                       device=self.mic_index)
-        sd.wait()
-        write(filename, self.samplerate, audio)
-
-        # Transcribe with Whisper
-        return self.transcribe(filename)
-
-    def transcribe(self, audio_path):
-        """Convert audio file to text using Whisper."""
-        print(f"[Ears] Transcribing {audio_path}...")
-        result = self.model.transcribe(audio_path)
-        text = result.get("text", "").strip()
-        if not text:
-            print("[Ears] Could not understand audio.")
-        else:
-            print(f"[Ears] Heard: {text}")
-        return text
-
+# import whisper
+# import os
+# import speech_recognition as sr  # Remove this if possible - google api - perhaps whisper instead
+# import sounddevice as sd
+# from scipy.io.wavfile import write
+#
+#
+# class STT:
+#     def __init__(self, use_mock=False, mic_index=0, samplerate=16000, duration=15):
+#         """
+#         Speech-to-Text class
+#         - use_mock: True uses input() instead of microphone
+#         - mic_index: optional, select a specific microphone
+#         - samplerate: recording sample rate
+#         - duration: default recording duration
+#         """
+#         device = "cpu"  # force CPU usage
+#         self.use_mock = use_mock
+#         self.duration = duration
+#         self.samplerate = samplerate
+#         self.mic_index = mic_index
+#
+#         if not use_mock:
+#             print("[Ears] Loading Whisper model...")
+#             self.model = whisper.load_model("small", device=device)  # options: tiny, base, small, medium, large
+#             print("[Ears] Whisper model loaded.")
+#
+#             self.recognizer = sr.Recognizer()
+#             self.microphone = self._find_microphone(mic_index)
+#
+#     def _find_microphone(self, mic_index):
+#         """Automatically find a working microphone if not specified."""
+#         mic_list = sr.Microphone.list_microphone_names()
+#         if mic_index is not None:
+#             if mic_index < len(mic_list):
+#                 print(f"[Ears] Using mic index {mic_index}: {mic_list[mic_index]}")
+#                 return sr.Microphone(device_index=mic_index)
+#             else:
+#                 print("[Ears] Mic index out of range, falling back to default.")
+#
+#         # fallback: pick the first working mic
+#         for i, name in enumerate(mic_list):
+#             try:
+#                 with sr.Microphone(device_index=i) as source:
+#                     print(f"[Ears] Found working mic {i}: {name}")
+#                     return sr.Microphone(device_index=i)
+#             except OSError:
+#                 continue
+#
+#         raise RuntimeError("No working microphone found.")
+#
+#     def ears(self, duration=None, filename="capture.wav"):
+#         """Record audio from microphone and return the transcribed text."""
+#         if self.use_mock:
+#             return input("Simulated audio: ")
+#
+#         duration = duration or self.duration
+#         print("[Ears] Listening... Please speak now.")
+#
+#         # Record audio
+#         audio = sd.rec(int(duration * self.samplerate),
+#                        samplerate=self.samplerate,
+#                        channels=1,
+#                        dtype='int16',
+#                        device=self.mic_index)
+#         sd.wait()
+#         write(filename, self.samplerate, audio)
+#
+#         # Transcribe with Whisper
+#         return self.transcribe(filename)
+#
+#     def transcribe(self, audio_path):
+#         """Convert audio file to text using Whisper."""
+#         print(f"[Ears] Transcribing {audio_path}...")
+#         result = self.model.transcribe(audio_path)
+#         text = result.get("text", "").strip()
+#         if not text:
+#             print("[Ears] Could not understand audio.")
+#         else:
+#             print(f"[Ears] Heard: {text}")
+#         return text
+#
 
 
 

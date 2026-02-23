@@ -1,5 +1,4 @@
-# modules/browser_controller.py
-from playwright.sync_api import sync_playwright  # is this built in? How's it working if not installed?
+from playwright.async_api import async_playwright
 import urllib.parse
 
 
@@ -17,71 +16,101 @@ class BrowserController:
     # ==========================================
     # Ensure browser exists
     # ==========================================
-    def _ensure_browser(self):
-        if self.page is not None:
+    async def _ensure_browser(self):
+        if await self._ensure_page_alive():
             return
 
         print("[Browser] Launching Playwright browser...")
-        self.playwright = sync_playwright().start()
-        self.browser = self.playwright.chromium.launch(headless=False)
-        self.context = self.browser.new_context()
-        self.page = self.context.new_page()
+        self.playwright = await async_playwright().start()
+        self.browser = await self.playwright.chromium.launch(headless=False)
+        self.context = await self.browser.new_context()
+        self.page = await self.context.new_page()
         print("[Browser] Ready")
+
+    async def _ensure_page_alive(self) -> bool:
+        """Check if page is still usable, reset if not."""
+        try:
+            if self.page is None:
+                return False
+            await self.page.title()  # lightweight check
+            return True
+        except Exception:
+            print("[Browser] Page was closed, resetting.")
+            self.page = None
+            self.context = None
+            self.browser = None
+            self.playwright = None
+            return False
 
     # ==========================================
     # MAIN ROUTER
     # ==========================================
-    def handle_command(self, spoken_text: str) -> bool:
+    async def handle_command(self, spoken_text: str):
         text = spoken_text.lower().strip()
 
         # --- GOOGLE SEARCH ---
         if text.startswith("google ") or text.startswith("search for ") or text.startswith("look up "):
-            return self.google_search(text)
+            return await self.google_search(text)
 
-        # --- STEP 4 COMMANDS ---
-        if text.startswith("next page") or text.startswith("next"):
-            return self.next_page()
+        # Only continue if page is alive
+        if not await self._ensure_page_alive():
+            return False
+
+        # --- NAVIGATION ---
+        if text.startswith("next page") or text == "next":
+            return await self.next_page()
 
         if text.startswith("click") or text.startswith("select"):
-            return self.click_result(text)
+            return await self.click_result(text)
 
-        if text.startswith("scroll down") or 'down' in text:
-            self.page.mouse.wheel(0, 900)
+        if "scroll down" in text:
+            await self.page.mouse.wheel(0, 900)
             return True
 
-        if text.startswith("scroll up") or 'up' in text:
-            self.page.mouse.wheel(0, -900)
+        if "scroll up" in text:
+            await self.page.mouse.wheel(0, -900)
             return True
 
-        if text.startswith("zoom in") or 'in' in text:
-            self.page.evaluate("document.body.style.zoom = '130%'")
+        if "zoom in" in text:
+            await self.page.evaluate("document.body.style.zoom = '130%'")
             return True
 
-        if text.startswith("zoom out") or 'out' in text:
-            self.page.evaluate("document.body.style.zoom = '70%'")
+        if "zoom out" in text:
+            await self.page.evaluate("document.body.style.zoom = '70%'")
             return True
 
-        # Commands to add
+        if "zoom reset" in text or "zoom normal" in text:
+            await self.page.evaluate("document.body.style.zoom = '100%'")
+            return True
 
-        # Go back
+        if "go back" in text:
+            await self.page.go_back()
+            return True
 
-        # Zoom back to 100% (not in or out)
+        if "new tab" in text:
+            self.page = await self.context.new_page()
+            return True
 
-        # Tab
+        if "press enter" in text or "enter" in text:
+            await self.page.keyboard.press("Enter")
+            return True
 
-        # Enter
+        if text.startswith("type "):
+            query = text.replace("type ", "", 1)
+            await self.page.keyboard.type(query)
+            return True
 
-        # Type this in - gets typed into text box
-
-        # Deselect / Cancel selection
+        if "cancel" in text or "deselect" in text:
+            await self.page.keyboard.press("Escape")
+            return True
 
         return False
 
     # ==========================================
     # GOOGLE SEARCH (stateful)
     # ==========================================
-    def google_search(self, spoken_text: str) -> bool:
-        self._ensure_browser()
+    async def google_search(self, spoken_text: str):
+        await self._ensure_browser()
 
         words = spoken_text.split()
 
@@ -103,13 +132,13 @@ class BrowserController:
 
         print(f"[Browser] Google searching: {query}")
         encoded = urllib.parse.quote_plus(query)
-        self.page.goto(f"https://www.google.com/search?q={encoded}")
+        await self.page.goto(f"https://www.google.com/search?q={encoded}")
         return True
 
     # ==========================================
     # NEXT PAGE
     # ==========================================
-    def next_page(self) -> bool:
+    async def next_page(self):
         url = self.page.url
 
         if "google.com/search" in url:
@@ -133,7 +162,7 @@ class BrowserController:
     #  THESE ARE NOT WORKING ----------> FIX THIS
 
 
-    def click_result(self, text: str) -> bool:
+    async def click_result(self, text: str):
         words = text.split()
 
         if "first" in words:

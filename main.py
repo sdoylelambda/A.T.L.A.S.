@@ -1,18 +1,251 @@
+import asyncio
+import yaml
+import threading
+from vispy import app
 from modules.face import FaceController
 from modules.window_controller import WindowController
 from modules.observer import Observer
-import threading
 
+
+def run_async(face, config):
+    async def main():
+        window_controller = WindowController()
+        observer = Observer(face, window_controller, config)
+        await observer.listen_and_respond()
+
+    asyncio.run(main())
 
 if __name__ == "__main__":
-    face = FaceController()
-    window_controller = WindowController()
+    with open("config.yaml") as f:
+        config = yaml.safe_load(f)
 
-    observer_thread = threading.Thread(target=lambda: Observer(face, window_controller).listen_and_respond(), daemon=True)
-    observer_thread.start()
+    face = FaceController()  # VisPy canvas created on main thread
 
-    face.run()
+    # Async logic runs in background thread
+    thread = threading.Thread(target=run_async, args=(face, config), daemon=True)
+    thread.start()
 
+    # VisPy owns the main thread
+    app.run()
+
+
+
+
+# import asyncio
+# from modules.ears import Ears
+# from modules.observer import Observer
+#
+#
+# async def main():
+#     ears = Ears()
+#     observer = Observer(ears)
+#
+#     while True:
+#         await observer.listen_and_respond()
+#         await asyncio.sleep(0.1)  # avoid tight loop
+#
+# if __name__ == "__main__":
+#     asyncio.run(main())
+#
+#
+#
+#
+
+
+
+
+# main_async.py
+# import asyncio
+# import yaml
+# from modules.face import FaceController
+# from modules.window_controller import WindowController
+# from modules.observer import Observer
+# from modules.ears import Ears
+# import threading
+# #
+# async def main():
+#     with open("config.yaml") as f:
+#         config = yaml.safe_load(f)
+#
+#     face = FaceController()
+#     window_controller = WindowController()
+#     observer = Observer(face, window_controller, config)
+#
+#     # Observer loop
+#     observer_task = asyncio.create_task(observer.listen_and_respond())
+#
+#     # Run face canvas (blocking) in a separate thread
+#     threading.Thread(target=face.run, daemon=True).start()
+#
+#     await observer_task
+#
+# if __name__ == "__main__":
+#     asyncio.run(main())
+
+
+
+# import asyncio
+# from modules.face import FaceController
+# from modules.window_controller import WindowController
+# from modules.observer import Observer
+#
+# async def main():
+#     face = FaceController()
+#     window_controller = WindowController()
+#     observer = Observer(face, window_controller)
+#     await observer.start()  # fully async
+#
+# if __name__ == "__main__":
+#     asyncio.run(main())
+
+
+
+
+# import asyncio
+# from modules.face import FaceController
+# from modules.window_controller import WindowController
+# from modules.observer import Observer
+#
+# async def main():
+#     # Initialize controllers
+#     face = FaceController()
+#     window_controller = WindowController()
+#
+#     # Initialize Observer
+#     observer = Observer(face, window_controller)
+#
+#     # Start Observer in background async task
+#     observer_task = asyncio.create_task(observer.listen_and_respond())
+#
+#     # Run FaceController main loop (VisPy timer already handles updates)
+#     # We wrap in asyncio so the event loop stays alive
+#     try:
+#         while True:
+#             await asyncio.sleep(1/60)  # yield to event loop ~60fps
+#     except asyncio.CancelledError:
+#         print("Shutting down...")
+#
+# if __name__ == "__main__":
+#     asyncio.run(main())
+
+
+
+
+# import asyncio
+# from modules.face import FaceController
+# from modules.window_controller import WindowController
+# from modules.observer import Observer
+#
+#
+# async def main():
+#     face = FaceController()
+#     window_controller = WindowController()
+#     observer = Observer(face, window_controller)
+#
+#     await observer.initialize()
+#
+#     # Run listener in background
+#     asyncio.create_task(observer.listen_and_respond())
+#
+#     # Keep face controller running (blocking for VisPy)
+#     face.run()
+#
+#
+# if __name__ == "__main__":
+#     asyncio.run(main())
+#
+
+
+
+# import asyncio
+# from modules.face import FaceController
+# from modules.window_controller import WindowController
+# from modules.observer import Observer
+#
+#
+# if __name__ == "__main__":
+#     face = FaceController()
+#     window_controller = WindowController()
+#     observer = Observer(face, window_controller)
+#
+#     asyncio.run(observer.start())
+#     face.run()  # GUI stays on main thread
+#
+#
+
+
+
+# main.py
+# import asyncio
+# from modules.face import FaceController
+# from modules.window_controller import WindowController
+# from modules.observer import Observer
+#
+# async def main():
+#     face = FaceController()
+#     window_controller = WindowController()
+#
+#     observer = Observer(face, window_controller)
+#     # start the listener coroutine
+#     asyncio.create_task(observer.listen_and_respond())
+#
+#     # run the face controller (should be async-compatible)
+#     await face.run_async()  # <-- your FaceController must have an async run method
+#
+# if __name__ == "__main__":
+#     asyncio.run(main())
+
+
+
+
+# import asyncio
+# from modules.face import FaceController
+# from modules.window_controller import WindowController
+# from modules.observer import Observer
+#
+# async def main():
+#     # Initialize controllers
+#     face = FaceController()
+#     window_controller = WindowController()
+#
+#     # Create Observer
+#     observer = Observer(face, window_controller)
+#
+#     # Run observer and face controller concurrently
+#     # Assuming face.run() is blocking/sync, run it in a thread
+#     loop = asyncio.get_running_loop()
+#     face_task = loop.run_in_executor(None, face.run)
+#
+#     # Run Observer.listen_and_respond() asynchronously
+#     await observer.listen_and_respond()
+#
+#     # Wait for face.run() to finish if needed
+#     await face_task
+#
+# if __name__ == "__main__":
+#     asyncio.run(main())
+
+
+
+
+
+
+
+# from modules.face import FaceController
+# from modules.window_controller import WindowController
+# from modules.observer import Observer
+# import threading
+#
+#
+# if __name__ == "__main__":
+#     face = FaceController()
+#     window_controller = WindowController()
+#
+#     observer_thread = threading.Thread(target=lambda: Observer(face, window_controller).listen_and_respond(), daemon=True)
+#     observer_thread.start()
+#
+#     face.run()
+#
 
 
 

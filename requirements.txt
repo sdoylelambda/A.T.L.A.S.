@@ -17,3 +17,9 @@ faster-whisper
 vispy
 threading
 numpy
+pyaudio
+webrtcvad
+scipy
+webrtcvad-wheels
+piper
+playwright

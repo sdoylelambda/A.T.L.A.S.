@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.egg-info/
 modules/__pycache__/
 
 # Virtual environments
@@ -21,3 +22,10 @@ env/
 *.wav
 *.mp3
 *.log
+
+# Piper TTS models
+*.onnx
+*.onnx.json
+
+# Config with secrets
+config.yaml

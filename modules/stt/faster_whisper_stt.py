@@ -1,49 +1,50 @@
-import os
-import sounddevice as sd
-import numpy as np
-import simpleaudio as sa
-from faster_whisper import WhisperModel
-from TTS.api import TTS
-import yaml
-
-
-
-class FasterWhisperSTT:
-    def __init__(self, config):
-        self.samplerate = 16000
-        self.duration = config["stt"]["duration"]
-        self.mic_index = config["audio"].get("mic_index", 0)
-
-        cpu_threads = config["system"]["cpu_threads"]
-        os.environ["OMP_NUM_THREADS"] = str(cpu_threads)
-
-        device = "cuda" if config["system"].get("use_gpu", False) else "cpu"
-
-        print(f"[STT] Loading Faster Whisper model '{config['stt']['model']}' on {device}...")
-        self.model = WhisperModel(
-            model_size_or_path=config["stt"]["model"],
-            device=device,
-            compute_type="int8",
-            cpu_threads=cpu_threads
-        )
-
-        print("[STT] Faster Whisper loaded.")
-
-    def transcribe(self, audio_array):
-        if audio_array.ndim > 1:
-            audio_array = audio_array.mean(axis=1)  # convert to mono
-
-        audio_float = audio_array.astype(np.float32) / 32768.0  # int16 -> float32
-        segments, _ = self.model.transcribe(
-            audio_float,
-            language="en",
-            temperature=0.0,  # deterministic output
-            suppress_blank=True,  # avoid extra blanks
-            word_timestamps=False,  # we don’t need timestamps
-            max_new_tokens=400,  # limit hallucination - less than 500 - smaller = fewer hallucinations
-            beam_size=1  # turn up to make more accurate at expense of speed. 1-5
-        )
-        return " ".join([seg.text for seg in segments])
+# import os
+# import sounddevice as sd
+# import numpy as np
+# import simpleaudio as sa
+# from faster_whisper import WhisperModel
+# from TTS.api import TTS
+# import yaml
+#
+#
+#
+# class FasterWhisperSTT:
+#     def __init__(self, config):
+#         self.samplerate = 16000
+#         self.duration = config["stt"]["duration"]
+#         self.mic_index = config["audio"].get("mic_index", 0)
+#
+#         cpu_threads = config["system"]["cpu_threads"]
+#         os.environ["OMP_NUM_THREADS"] = str(cpu_threads)
+#
+#         device = "cuda" if config["system"].get("use_gpu", False) else "cpu"
+#
+#         print(f"[STT] Loading Faster Whisper model '{config['stt']['model']}' on {device}...")
+#         self.model = WhisperModel(
+#             model_size_or_path=config["stt"]["model"],
+#             device=device,
+#             compute_type="int8",
+#             cpu_threads=cpu_threads
+#         )
+#
+#         print("[STT] Faster Whisper loaded.")
+#
+#     def transcribe(self, audio_array):
+#         if audio_array.ndim > 1:
+#             audio_array = audio_array.mean(axis=1)  # convert to mono
+#
+#         audio_float = audio_array.astype(np.float32) / 32768.0  # int16 -> float32
+#         segments, _ = self.model.transcribe(
+#             audio_float,
+#             language="en",
+#             temperature=0.0,  # deterministic output
+#             suppress_blank=True,  # avoid extra blanks
+#             word_timestamps=False,  # we don’t need timestamps
+#             max_new_tokens=400,  # limit hallucination - less than 500 - smaller = fewer hallucinations
+#             beam_size=1  # turn up to make more accurate at expense of speed. 1-5
+#         )
+#         print("[STT] Faster Whisper Used.")
+#         return " ".join([seg.text for seg in segments])
 
 
 # import os
