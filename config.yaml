@@ -14,11 +14,36 @@ network:
 
 # ---- LLM (disabled for now) ----
 llm:
-  enabled: false # <-- keep false until you add a model
-  backend: "local" # local | remote
+  enabled: true
+  backend: "local"  # local | remote
+
+  models:
+    orchestrator:
+      name: mistral
+      num_ctx: 512  # set for short commands - double if cut off
+      temperature: 0.7  # high risk - assumes it knows
+    classifier:
+      name: phi3:mini
+      num_ctx: 512  # set for short commands - double if cut off
+      temperature: 0.1  # low risk - nearly no assumptions
+    code:
+      name: deepseek-coder:6.7b
+      num_ctx: 2048  # set for long commands. try 1-24 if too slow - may cut off long commands
+      temperature: 0.1  # low risk - nearly no assumptions
+
+  api_models:
+    claude:
+      enabled: false
+      model: claude-opus-4-6
+      max_tokens: 1000
+      ask_permission: true
+    gemini:
+      enabled: false
+      model: gemini-pro
+      ask_permission: true
+
+  # legacy/unused for now
   model_path: "./models/mpt-7b/"
-  max_tokens: 2048
-  temperature: 0.4
 
 # ---- Memory ----
 memory:

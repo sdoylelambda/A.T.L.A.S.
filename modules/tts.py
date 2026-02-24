@@ -11,7 +11,7 @@ class TTSModule:
         if not use_mock:
             self.voice = PiperVoice.load(model_path)
 
-    def speak(self, text):
+    async def speak(self, text):
         print(f"[TTS] {text}")
         try:
             # Synthesize
