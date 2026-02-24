@@ -137,18 +137,14 @@ class BrowserController:
     # ==========================================
     async def next_page(self):
         url = self.page.url
-
         if "google.com/search" in url:
             try:
-                self.page.click("a#pnnext")
-                print("[Browser] Next page")
+                await self.page.click("a#pnnext")  # missing await
                 return True
-            except:  #                                      ADD EXCEPTION TYPE
-                print("[Browser] Next button not found")
+            except Exception as e:
+                print(f"[Browser] Next button not found: {e}")
                 return False
-
-        # fallback scroll
-        self.page.mouse.wheel(0, 1200)
+        await self.page.mouse.wheel(0, 1200)  # missing await
         return True
 
     # ==========================================
@@ -158,10 +154,8 @@ class BrowserController:
 
     #  THESE ARE NOT WORKING ----------> FIX THIS
 
-
     async def click_result(self, text: str):
         words = text.split()
-
         if "first" in words:
             idx = 0
         elif "second" in words:
@@ -172,19 +166,14 @@ class BrowserController:
             idx = 0
 
         url = self.page.url
-
-        # Google results
         if "google.com/search" in url:
-            results = self.page.query_selector_all("h3")
+            results = await self.page.query_selector_all("h3")  # missing await
             if len(results) > idx:
-                results[idx].click()
-                print(f"[Browser] Clicked result {idx+1}")
+                await results[idx].click()  # missing await
                 return True
 
-        # generic fallback
-        links = self.page.query_selector_all("a")
+        links = await self.page.query_selector_all("a")  # missing await
         if len(links) > idx:
-            links[idx].click()
+            await links[idx].click()  # missing await
             return True
-
         return False

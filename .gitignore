@@ -29,3 +29,6 @@ env/
 
 # Config with secrets
 config.yaml
+
+# Projects create by Jarvis
+workspace/

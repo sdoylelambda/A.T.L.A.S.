@@ -21,15 +21,15 @@ llm:
     orchestrator:
       name: mistral
       num_ctx: 512  # set for short commands - double if cut off
-      temperature: 0.7  # high risk - assumes it knows
+      temperature: 0.2  # low-medium - consistent JSON output, handles varied phrasing
     classifier:
       name: phi3:mini
       num_ctx: 512  # set for short commands - double if cut off
-      temperature: 0.1  # low risk - nearly no assumptions
+      temperature: 0.0  # deterministic - no creativity needed, just classify
     code:
       name: deepseek-coder:6.7b
-      num_ctx: 2048  # set for long commands. try 1-24 if too slow - may cut off long commands
-      temperature: 0.1  # low risk - nearly no assumptions
+      num_ctx: 2048  # longer context for full code output
+      temperature: 0.1  # nearly deterministic - correct code over creative code
 
   api_models:
     claude:
@@ -55,9 +55,10 @@ memory:
 # ---- Audio ----
 audio:
   samplerate: 16000
-  duration: 15          # Length of message that can be heard
+  duration: 30  # Max length of message that can be heard
   mic_index: null
   use_mock: false
+  calibration_interval: 30
 
 transcription:
   engine: faster-whisper
