@@ -20,36 +20,12 @@ All core functionality runs **completely locally** on your machine. No data leav
 
 ## System Requirements
 
-## Platform Support
-| Feature | Linux | Mac | Windows |
-|---------|-------|-----|---------|
-| Core AI/LLM | ✅ | ✅ | ✅ |
-| Voice I/O | ✅ | ✅ | ⚠️ |
-| File/code tools | ✅ | ✅ | ✅ |
-| App launching | ✅ | ⚠️ | ⚠️ |
-| Browser control | ✅ | ✅ | ✅ |
-
-⚠️ = works with minor path configuration
-
 - Linux (tested on Pop!_OS)
 - Python 3.11+
 - 16GB RAM minimum
 - GPU optional (NVIDIA recommended) — falls back to CPU automatically
 - Microphone
 - Speakers or headphones
-
-- Mac setup
-- Required changes
-- cosmic-term terminal path won't exist — needs /Applications/... style paths
-- xdg-open doesn't exist — needs open instead
-- App paths in app_launcher.py are all Linux paths
-
-- Windows - Not recommended - VM instead
-- xdg-open doesn't exist — needs os.startfile() or start
-- All app paths break — needs .exe paths
-- subprocess.Popen works differently for some commands
-- Path separators could cause issues despite Python's pathlib handling most of it
-- PyAudio on Windows is notoriously painful to install
 
 ---
 

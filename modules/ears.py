@@ -13,6 +13,7 @@ class Ears:
         self.rate = rate
         self.paused = False
         self.debug = debug
+        self.speaking = False
 
         # Speech detection params
         self.start_threshold = 1200     # speech start RMS
@@ -110,6 +111,16 @@ class Ears:
               f"start={int(self.start_threshold)} "
               f"stop={int(self.stop_threshold)}")
 
+    async def auto_calibrate(self, interval: int = 30):
+        """Recalibrate noise floor every interval seconds, only during silence."""
+        while True:
+            await asyncio.sleep(interval)
+            if not self.paused and self.audio_stream and not self.speaking:
+                if self.debug:
+                    print("[Ears] Recalibrating noise floor...")
+                await self._calibrate_noise_floor(seconds=0.5, pre_delay=0)
+
+
     async def listen(self, max_duration=30.0):
         """
         Record until speech ends (RMS-based).
@@ -145,6 +156,7 @@ class Ears:
             if not speech_started:
                 if rms >= self.start_threshold:
                     speech_started = True
+                    self.speaking = True
                     frames.append(data)
                 continue
 
@@ -159,13 +171,16 @@ class Ears:
 
             # stop after sustained silence
             if silence_chunks > max_silence_chunks:
+                self.speaking = False
                 break
 
             # safety max duration
             if time.time() - start_time > max_duration:
+                self.speaking = False
                 break
 
         if not frames:
+            self.speaking = False
             return None, 0.0
 
         audio_bytes = b"".join(frames)
