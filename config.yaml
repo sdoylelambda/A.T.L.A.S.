@@ -15,21 +15,30 @@ network:
 # ---- LLM (disabled for now) ----
 llm:
   enabled: true
-  backend: "local"  # local | remote
+  # local | remote
+  backend: "local"
 
   models:
     orchestrator:
       name: mistral
-      num_ctx: 512  # set for short commands - double if cut off
-      temperature: 0.2  # low-medium - consistent JSON output, handles varied phrasing
+      # set for shorter commands - double if cut off
+      num_ctx: 1024
+      # low-medium - consistent JSON output, handles varied phrasing
+      temperature: 0.2
     classifier:
       name: phi3:mini
-      num_ctx: 512  # set for short commands - double if cut off
-      temperature: 0.0  # deterministic - no creativity needed, just classify
+      # set for short commands - double if cut off
+      num_ctx: 512
+      # deterministic - no creativity needed, just classify
+      temperature: 0.0
+      # hard output cap - one sentence max - increase for longer responses from phi3 (basic AI)
+      max_tokens: 50
     code:
       name: deepseek-coder:6.7b
-      num_ctx: 2048  # longer context for full code output
-      temperature: 0.1  # nearly deterministic - correct code over creative code
+      # longer context for full code output
+      num_ctx: 2048
+      # nearly deterministic - correct code over creative code
+      temperature: 0.1
 
   api_models:
     claude:
@@ -55,7 +64,8 @@ memory:
 # ---- Audio ----
 audio:
   samplerate: 16000
-  duration: 30  # Max length of message that can be heard
+  # Max length of message that can be heard in seconds
+  duration: 30
   mic_index: null
   use_mock: false
   calibration_interval: 30
@@ -64,14 +74,16 @@ transcription:
   engine: faster-whisper
 
   tts:
-    enabled: false # mock TTS for now
+    # mock TTS for now
+    enabled: false
     engine: "coqui"
     voice: "default"
 
 # ---- Execution permissions ----
 permissions:
   allow_file_write: true
-  allow_command_exec: false # safer default
+  # safer default
+  allow_command_exec: false
   allow_network: false
 
 # ---- Logging ----
@@ -81,14 +93,18 @@ logging:
 
 # ---- Development ----
 dev:
-  mock_mode: true # IMPORTANT: keeps everything lightweight
+  # IMPORTANT: keeps everything lightweight
+  mock_mode: true
   auto_approve: false
 
 stt:
-  backend: faster_whisper   # faster_whisper | whisper
-  model: small              # tiny | base | small | medium
+  # faster_whisper | whisper both used depending on message length - do not change
+  backend: faster_whisper
+  # tiny | base | small | medium
+  model: small
   language: en
-  duration: 15              # Length of message that can be heard
+  # Length of message that can be heard in seconds
+  duration: 30
 
 system:
   cpu_threads: 1

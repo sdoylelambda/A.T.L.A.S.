@@ -79,7 +79,7 @@ class ToolExecutor:
             )
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content)
-        return f"Created file: {p}"
+        return f"Done, sir."
 
     async def _create_dir(self, path: str, **kwargs) -> str:
         p = Path(path)

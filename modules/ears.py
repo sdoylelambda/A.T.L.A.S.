@@ -22,49 +22,53 @@ class Ears:
         self.noise_floor = None
 
     def _find_mic(self, p):
-        """Find the first real analog mic input, avoiding HDMI/display/virtual devices."""
-        blacklist = ('hdmi', 'dell', 'displayport', 'default', 'pulse',
-                     'pipewire', 'sysdefault', 'surround', 'upmix', 'vdown')
+        """Find the first real analog mic input, falling back to pulse."""
+        blacklist = ('hdmi', 'dell', 'displayport', 'default',
+                     'surround', 'upmix', 'vdown')
 
+        # first pass — look for real analog mic
         for i in range(p.get_device_count()):
             info = p.get_device_info_by_index(i)
             name_lower = info['name'].lower()
-
             if info['maxInputChannels'] == 0:
                 continue
             if info['maxInputChannels'] > 8:
-                continue  # skip virtual/aggregate devices
+                continue
             if any(bad in name_lower for bad in blacklist):
                 continue
-
             print(f"[Ears] Selected mic: [{i}] {info['name']}")
             return i, int(info['defaultSampleRate'])
+
+        # fallback — use pulse (works with PipeWire)
+        for i in range(p.get_device_count()):
+            info = p.get_device_info_by_index(i)
+            if 'pulse' in info['name'].lower() and info['maxInputChannels'] > 0:
+                print(f"[Ears] Falling back to pulse device: [{i}] {info['name']}")
+                return i, int(info['defaultSampleRate'])
 
         raise RuntimeError("No suitable microphone found")
 
     async def _ensure_stream(self):
-        # Suppress ALSA/Jack spam
+        # suppress ALSA spam
         devnull = os.open(os.devnull, os.O_WRONLY)
         old_stderr = os.dup(2)
         os.dup2(devnull, 2)
         os.close(devnull)
-
         p = pyaudio.PyAudio()
-
-        # Restore stderr
         os.dup2(old_stderr, 2)
         os.close(old_stderr)
 
-        if self.debug:
-            for i in range(p.get_device_count()):
-                info = p.get_device_info_by_index(i)
-                if info['maxInputChannels'] > 0:
-                    print(f"  [{i}] {info['name']}  "
-                          f"channels={info['maxInputChannels']}  "
-                          f"rate={int(info['defaultSampleRate'])}")
-            mic_info = p.get_device_info_by_index(0)
-            print(f"[Ears] Using device: {mic_info['name']}  "
-                  f"native rate={int(mic_info['defaultSampleRate'])}")
+        if self.audio_stream is not None:
+            # verify stream is still healthy
+            try:
+                self.audio_stream.get_read_available()
+            except OSError:
+                print("[Ears] Stream unhealthy, reopening...")
+                try:
+                    self.audio_stream.close()
+                except Exception:
+                    pass
+                self.audio_stream = None
 
         if self.audio_stream is None:
             p = pyaudio.PyAudio()
@@ -115,10 +119,15 @@ class Ears:
         """Recalibrate noise floor every interval seconds, only during silence."""
         while True:
             await asyncio.sleep(interval)
-            if not self.paused and self.audio_stream and not self.speaking:
-                if self.debug:
-                    print("[Ears] Recalibrating noise floor...")
-                await self._calibrate_noise_floor(seconds=0.5, pre_delay=0)
+            try:
+                if not self.paused and self.audio_stream and not self.speaking:
+                    if self.debug:
+                        print("[Ears] Recalibrating noise floor...")
+                    await self._calibrate_noise_floor(seconds=0.5, pre_delay=0)
+            except OSError as e:
+                print(f"[Ears] Calibration failed: {e}, will retry next interval")
+                # reset stream so it gets reopened on next listen
+                self.audio_stream = None
 
 
     async def listen(self, max_duration=30.0):
@@ -126,13 +135,17 @@ class Ears:
         Record until speech ends (RMS-based).
         Returns (audio_bytes, duration_seconds)
         """
-        await self._ensure_stream()
+        try:
+            await self._ensure_stream()
+        except OSError as e:
+            print(f"[Ears] Failed to open stream: {e}")
+            self.audio_stream = None
+            return None, 0.0
 
         frames = []
         speech_started = False
         silence_chunks = 0
-        max_silence_chunks = int(0.5 * self.rate / self.chunk_size)  # ~0.5s silence
-
+        max_silence_chunks = int(0.5 * self.rate / self.chunk_size)
         start_time = time.time()
 
         while True:
@@ -140,11 +153,17 @@ class Ears:
                 await asyncio.sleep(0.05)
                 continue
 
-            data = await asyncio.to_thread(
-                self.audio_stream.read,
-                self.chunk_size,
-                exception_on_overflow=False
-            )
+            try:
+                data = await asyncio.to_thread(
+                    self.audio_stream.read,
+                    self.chunk_size,
+                    exception_on_overflow=False
+                )
+            except OSError as e:
+                print(f"[Ears] Stream read error: {e}, resetting...")
+                self.audio_stream = None
+                self.speaking = False
+                return None, 0.0
 
             audio_np = np.frombuffer(data, dtype=np.int16)
             rms = np.sqrt(np.mean(audio_np.astype(np.float32) ** 2))

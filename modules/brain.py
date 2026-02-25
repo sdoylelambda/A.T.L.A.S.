@@ -1,11 +1,12 @@
 import yaml
 import ollama
 import anthropic
-import google.generativeai as genai
-from sentence_transformers import SentenceTransformer
+from anthropic.types import MessageParam
+from google import genai
 import faiss
 import json
 from custom_exceptions import PermissionRequired, ModelUnavailable, PlanExecutionError
+import textwrap
 
 
 class Brain:
@@ -36,8 +37,9 @@ class Brain:
                 model=cfg["name"],
                 messages=messages,
                 options={
-                    "num_ctx": cfg.get("num_ctx", 512),
-                    "temperature": cfg.get("temperature", 0.1),
+                    "num_ctx": int(cfg.get("num_ctx", 512)),
+                    "temperature": float(cfg.get("temperature", 0.1)),
+                    "num_predict": int(cfg.get("max_tokens", 50)),
                 }
             )
             return response["message"]["content"]
@@ -52,9 +54,9 @@ class Brain:
             client = anthropic.Anthropic()
             message = client.messages.create(
                 model=cfg["model"],
-                max_tokens=cfg.get("max_tokens", 1000),
+                max_tokens=int(cfg.get("max_tokens", 1000)),
                 system=system or "You are Jarvis, a helpful AI assistant.",
-                messages=[{"role": "user", "content": prompt}]
+                messages=[MessageParam(role="user", content=prompt)]
             )
             return message.content[0].text
 
@@ -65,8 +67,11 @@ class Brain:
                 raise ModelUnavailable("gemini")
             if cfg.get("ask_permission", True):
                 raise PermissionRequired("gemini", prompt)
-            model = genai.GenerativeModel(cfg["model"])
-            response = model.generate_content(prompt)
+            client = genai.Client()
+            response = client.models.generate_content(
+                model=cfg["model"],
+                contents=prompt
+            )
             return response.text
 
         else:
@@ -87,7 +92,7 @@ class Brain:
                 model=cfg["model"],
                 max_tokens=cfg.get("max_tokens", 1000),
                 system="You are Jarvis, a helpful AI assistant.",
-                messages=[{"role": "user", "content": command}]
+                messages=[MessageParam(role="user", content=command)]
             )
             return {"summary": message.content[0].text, "steps": []}
 
@@ -105,53 +110,46 @@ class Brain:
         phi3 attempts to handle the command directly.
         Returns a result dict if it can handle it, None if it needs Mistral.
         """
-        system = """You are Jarvis, an AI assistant with dry British wit inspired by Iron Man.
-        Always address the user as 'sir'. Never use names or Mr./Mrs.
-        Be natural, concise, never robotic. One sentence max. No exceptions.
+        system = textwrap.dedent("""
+            You are Jarvis, an AI assistant with dry British wit inspired by Iron Man.
+            Always address the user as 'sir'. Never use names or Mr./Mrs.
+            Be natural, concise, never robotic. One sentence max. No exceptions.
 
-        You MUST respond with only the word ESCALATE for ANY of these:
-        - files, folders, code, apps, web search, system actions
-        - anything that could possibly touch a computer
-        - if you are even slightly unsure
+            RULE: Respond with ESCALATE for ANYTHING involving a computer.
+            RULE: NEVER write code, scripts, or bash commands. Ever.
+            RULE: NEVER pretend to complete a computer task.
+            RULE: One sentence max for all responses.
 
-        You are FORBIDDEN from pretending to complete computer tasks.
-        You are FORBIDDEN from returning code, bash commands, or scripts.
-        You are FORBIDDEN from responses longer than one sentence.
-        Only answer pure conversational questions or facts directly.
+            ESCALATE for: files, folders, code, scripts, apps, web, system, anything on a computer.
+            ESCALATE if unsure.
 
-        Examples:
-        User: create a file called test.txt
-        Jarvis: ESCALATE
-        
-        User: create a file called name.py
-        Jarvis: ESCALATE
+            Examples:
+            User: create a file called test.txt
+            Jarvis: ESCALATE
 
-        User: create a folder called projects
-        Jarvis: ESCALATE
+            User: create a new file called backend.py with basic code methods
+            Jarvis: ESCALATE
 
-        User: search google for python tutorials
-        Jarvis: ESCALATE
+            User: write a python class
+            Jarvis: ESCALATE
 
-        User: write a python script
-        Jarvis: ESCALATE
+            User: write me any code at all
+            Jarvis: ESCALATE
 
-        User: create a python file called calculator.py with add and subtract methods
-        Jarvis: ESCALATE
+            User: make a script
+            Jarvis: ESCALATE
 
-        User: write me a class called Calculator
-        Jarvis: ESCALATE
+            User: what is the capital of France
+            Jarvis: Paris, sir.
 
-        User: what is the capital of France
-        Jarvis: Paris, sir.
+            User: how are you today
+            Jarvis: Fully operational and at your service, sir.
 
-        User: what is the boiling point of water
-        Jarvis: 100 degrees Celsius at standard atmospheric pressure, sir.
+            User: tell me a joke
+            Jarvis: Why don't scientists trust atoms? Because they make up everything, sir.
 
-        User: how are you today
-        Jarvis: Fully operational and at your service, sir.
-
-        User: tell me a joke
-        Jarvis: Why don't scientists trust atoms? Because they make up everything, sir."""
+            User: what is 2 plus 2
+            Jarvis: 4, sir.""").strip()
 
         result = self.query(command, model_key="classifier", system=system)
         result = result.strip()
@@ -159,58 +157,78 @@ class Brain:
         if "ESCALATE" in result:
             return None
 
+        if "```" in result or "def " in result or "class " in result or "import " in result:
+            print("[Brain] phi3 returned code, forcing ESCALATE")
+            return None
+
+        if len(result) > 200:
+            print("[Brain] phi3 response too long, forcing ESCALATE")
+            return None
+
         return {"summary": result, "steps": []}
 
     # ─── plan creation ────────────────────────────────────────────────────
 
     def create_plan(self, command: str) -> dict:
-        system = """You are Jarvis, an AI computer assistant.
-        Your only job is to return a valid JSON execution plan. Nothing else.
-        Never respond with text, explanations, or ESCALATE. Only JSON.
+        system = textwrap.dedent("""
+            You are Jarvis, an AI computer assistant.
+            Your only job is to return a valid JSON execution plan. Nothing else.
+            Never respond with text, explanations, or ESCALATE. Only JSON.
 
-        Output format:
-        {
-          "summary": "one sentence plain english description of what you will do",
-          "route": "local|claude|gemini",
-          "steps": [
-            {"action": "tool_name", "params": {...}}
-          ]
-        }
+            Output format:
+            {
+              "summary": "one sentence plain english description of what you will do",
+              "route": "local|claude|gemini",
+              "steps": [
+                {"action": "tool_name", "params": {...}}
+              ]
+            }
 
-        Available tools and their params:
-        - create_file: {"path": "filename.txt", "content": "optional content"}
-        - create_dir: {"path": "dirname"}
-        - write_code: {"path": "file.py", "content": "code here"}
-        - read_file: {"path": "filename.txt"}
-        - run_script: {"path": "script.py"}
-        - list_dir: {"path": "."}
-        - delete_file: {"path": "filename.txt"}
-        - web_search: {"query": "search terms"}
-        - browser_navigate: {"url": "https://..."}
-        - browser_search: {"query": "search terms"}
+            Available tools and their params:
+            - create_file: {"path": "filename.txt", "content": "optional content"}
+            - create_dir: {"path": "dirname"}
+            - write_code: {"path": "file.py", "content": "code here"}
+            - read_file: {"path": "filename.txt"}
+            - run_script: {"path": "script.py"}
+            - list_dir: {"path": "."}
+            - delete_file: {"path": "filename.txt"}
+            - web_search: {"query": "search terms"}
+            - browser_navigate: {"url": "https://..."}
+            - browser_search: {"query": "search terms"}
 
-        Set route to "claude" for complex reasoning or long document analysis.
-        Set route to "gemini" for real-time or current information.
-        Otherwise route is "local".
+            Set route to "claude" for complex reasoning or long document analysis.
+            Set route to "gemini" for real-time or current information.
+            Otherwise route is "local".
 
-        Examples:
-        User: create a file called hello.txt
-        {"summary": "Creating hello.txt in workspace.", "route": "local", "steps": [{"action": "create_file", "params": {"path": "hello.txt", "content": ""}}]}
+            Examples:
+            User: create a file called hello.txt
+            {"summary": "Creating hello.txt in workspace.", "route": "local", "steps": [{"action": "create_file", "params": {"path": "hello.txt", "content": ""}}]}
 
-        User: create a folder called projects then add a file called main.py
-        {"summary": "Creating projects folder with main.py inside.", "route": "local", "steps": [{"action": "create_dir", "params": {"path": "projects"}}, {"action": "create_file", "params": {"path": "projects/main.py", "content": ""}}]}
+            User: create a folder called projects then add a file called main.py
+            {"summary": "Creating projects folder with main.py inside.", "route": "local", "steps": [{"action": "create_dir", "params": {"path": "projects"}}, {"action": "create_file", "params": {"path": "projects/main.py", "content": ""}}]}
 
-        User: write a python class called Calculator with add and subtract methods
-        {"summary": "Writing Calculator class with add and subtract methods.", "route": "local", "steps": [{"action": "write_code", "params": {"path": "calculator.py", "content": "class Calculator:\\n    def add(self, a, b):\\n        return a + b\\n\\n    def subtract(self, a, b):\\n        return a - b"}}]}
+            User: write a python class called Calculator with add and subtract methods
+            {"summary": "Writing Calculator class with add and subtract methods.", "route": "local", "steps": [{"action": "write_code", "params": {"path": "calculator.py", "content": "class Calculator:\\n    def add(self, a, b):\\n        return a + b\\n\\n    def subtract(self, a, b):\\n        return a - b"}}]}
 
-        Only return JSON. No explanation. No markdown. No code blocks."""
+            Only return JSON. No explanation. No markdown. No code blocks.""").strip()
 
         command = command.replace("ESCALATE", "").strip()
+
+        # debug — see exactly what Mistral returns
         result = self.query(command, model_key="orchestrator", system=system)
+        print(f"[Brain] Mistral raw response: {result[:200]}")
+
         try:
-            return json.loads(result)
-        except json.JSONDecodeError:
-            return {"summary": result, "steps": [], "route": "local"}
+            start = result.find("{")
+            end = result.rfind("}") + 1
+            if start != -1 and end > start:
+                json_str = result[start:end]
+                return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            print(f"[Brain] JSON parse failed: {e}")
+            print(f"[Brain] Attempted to parse: {json_str[:200]}")
+
+        return {"summary": result, "steps": [], "route": "local"}
 
     # ─── main entry point ─────────────────────────────────────────────────
 
@@ -246,6 +264,7 @@ class Brain:
     def encoder(self):
         """Lazy load encoder only when memory is used."""
         if self._encoder is None:
+            from sentence_transformers import SentenceTransformer
             self._encoder = SentenceTransformer('all-MiniLM-L6-v2')
         return self._encoder
 

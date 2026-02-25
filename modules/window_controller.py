@@ -30,12 +30,37 @@ class WindowController:
                 "run": ["ctrl", "f5"],
                 "new tab": ["ctrl", "t"],
                 "close tab": ["ctrl", "w"],
+                "find": ["ctrl", "f"],
+                "comment": ["ctrl", "slash"],
+                "undo": ["ctrl", "z"],
+                "redo": ["ctrl", "shift", "z"],
+                "format": ["ctrl", "shift", "i"],
+                "terminal": ["ctrl", "grave"],  # ctrl+`
+                "split editor": ["ctrl", "backslash"],
+            },
+            "pycharm": {
+                "run": ["shift", "f10"],
+                "debug": ["shift", "f9"],
+                "save": ["ctrl", "s"],
+                "find": ["ctrl", "f"],
+                "find in files": ["ctrl", "shift", "f"],
+                "reformat": ["ctrl", "alt", "l"],
+                "undo": ["ctrl", "z"],
+                "redo": ["ctrl", "shift", "z"],
+                "comment": ["ctrl", "slash"],
+                "new file": ["alt", "insert"],
+                "close tab": ["ctrl", "f4"],
+                "terminal": ["alt", "f12"],
             },
             "terminal": {
                 "new tab": ["ctrl", "shift", "t"],
                 "clear": ["ctrl", "l"],
                 "copy": ["ctrl", "shift", "c"],
                 "paste": ["ctrl", "shift", "v"],
+                "close tab": ["ctrl", "shift", "w"],
+                "zoom in": ["ctrl", "shift", "equal"],
+                "zoom out": ["ctrl", "minus"],
+                "find": ["ctrl", "shift", "f"],
             },
         }
 
@@ -43,6 +68,15 @@ class WindowController:
             "copy": ["ctrl", "c"],
             "paste": ["ctrl", "v"],
             "select all": ["ctrl", "a"],
+            "undo": ["ctrl", "z"],
+            "redo": ["ctrl", "shift", "z"],
+            "save": ["ctrl", "s"],
+            "find": ["ctrl", "f"],
+            "close": ["ctrl", "w"],
+            "quit": ["alt", "f4"],
+            "minimize": ["super", "down"],
+            "maximize": ["super", "up"],
+            "screenshot": ["ctrl", "print"],
         }
 
     # -----------------------------

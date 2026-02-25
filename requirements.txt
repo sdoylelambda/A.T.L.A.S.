@@ -23,3 +23,6 @@ scipy
 webrtcvad-wheels
 piper
 playwright
+anthropic
+ollama
+google-genai

@@ -73,10 +73,29 @@ class Observer:
                     print(f"[STT] Hallucination detected, skipping: {text[:50]}")
                     continue
 
+                # filter useless single words that aren't commands
+                known_short = [
+                    # cancel/control
+                    "yes", "no", "cancel", "stop", "pause",
+                    "never mind", "forget it",
+                    # browser navigation
+                    "zoom in", "zoom out", "go back", "go forward",
+                    "new tab", "close tab", "refresh", "reload",
+                    "full screen", "fullscreen", "find",
+                    "scroll up", "scroll down", "next", "enter",
+                    "copy", "paste", "select"
+                    # app shortcuts
+                    "save", "run", "clear",
+                ]
+                if len(words) <= 1 and not any(cmd in text for cmd in known_short):
+                    print(f"[STT] Too short, skipping: {text}")
+                    continue
+
                 print(f"[Heard]: {text}")
 
                 # ❌ Cancel command
                 if any(word in text for word in ["cancel", "stop", "never mind", "forget it"]):
+                    self.mouth.stop()  # ← interrupt speech instantly
                     self.face.set_state("listening")
                     await self.mouth.speak("Cancelled.")
                     continue
@@ -139,19 +158,20 @@ class Observer:
     async def handle_brain_command(self, command: str):
         try:
             plan = self.brain.process(command)
+            summary = plan.get("summary", "")
+
+            # clean summary — remove any JSON bleed
+            if "{" in summary:
+                summary = summary.split("{")[0].strip()
 
             if plan.get("steps"):
-                # only speak summary for multi-step so user knows what's coming
                 if len(plan["steps"]) > 1:
-                    await self.mouth.speak(plan["summary"])
-
+                    await self.mouth.speak(summary)
                 results = await self.executor.execute_plan(plan)
-
                 for result in results:
                     await self.mouth.speak(result)
             else:
-                # phi3 answered directly
-                await self.mouth.speak(plan["summary"])
+                await self.mouth.speak(summary)
 
         except PermissionRequired as e:
             await self.mouth.speak(
