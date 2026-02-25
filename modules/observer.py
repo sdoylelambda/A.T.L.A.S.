@@ -79,11 +79,11 @@ class Observer:
                     "yes", "no", "cancel", "stop", "pause",
                     "never mind", "forget it",
                     # browser navigation
-                    "zoom in", "zoom out", "go back", "go forward",
-                    "new tab", "close tab", "refresh", "reload",
-                    "full screen", "fullscreen", "find",
-                    "scroll up", "scroll down", "next", "enter",
-                    "copy", "paste", "select"
+                    "zoom in", "zoom out", "zoom reset", "go down", "go up", "go back", "go forward",
+                    "new tab", "close tab", "refresh", "reload", "new window"
+                    "full screen", "fullscreen", "find", "search on page",
+                    "scroll up", "scroll down", "next", "enter", "press enter",
+                    "copy", "paste", "select", "click",
                     # app shortcuts
                     "save", "run", "clear",
                 ]
@@ -182,7 +182,7 @@ class Observer:
             response = self.stt.transcribe(audio_bytes, duration) if audio_bytes else ""
             response = response.lower().strip() if response else ""
 
-            if any(word in response for word in ["yes", "yeah", "yep", "do it", "send it", "sure"]):
+            if any(word in response for word in ["yes", "yeah", "yep", "do it", "send", "sure", "build"]):
                 plan = self.brain.process_with_permission(command, e.model_key)
                 await self.mouth.speak(plan["summary"])
             else:

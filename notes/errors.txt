@@ -1,0 +1,77 @@
+[STT] Too short, skipping: select.
+[STT] Using Faster-Whisper (0.6s)
+[STT] Transcription time: 1.5s
+[Timing] STT: 1.51s
+Expression 'framesAvail' failed in 'src/hostapi/alsa/pa_linux_alsa.c', line: 3625
+Expression 'PaAlsaStreamComponent_GetAvailableFrames( &self->capture, &captureFrames, xrunOccurred )' failed in 'src/hostapi/alsa/pa_linux_alsa.c', line: 3719
+Expression 'PaAlsaStream_GetAvailableFrames( self, self->capture.pcm != NULL, self->playback.pcm != NULL, framesAvail, &xrun )' failed in 'src/hostapi/alsa/pa_linux_alsa.c', line: 3778
+Expression 'PaAlsaStream_WaitForFrames( stream, &framesAvail, &xrun )' failed in 'src/hostapi/alsa/pa_linux_alsa.c', line: 4434
+[Ears] Stream read error: [Errno -9999] Unanticipated host error, resetting...
+
+Process finished with exit code 139 (interrupted by signal 11:SIGSEGV)
+
+
+
+
+
+is this preventing cancel command? 156 browser_controller.py
+
+        if "cancel" in text or "deselect" in text:
+            await self.page.keyboard.press("Escape")
+            return True
+
+
+
+
+
+hearing itself talk?
+
+[TTS] Hello sir, what can I do for you.
+[Observer] Listening and responding...
+[STT] Using Whisper (32.3s)
+[STT] Transcription time: 0.1s
+[Timing] STT: 2.02s
+[Heard]: it's a little bit, what can i do for you?  youtube best transmits ever.
+[Browser] Launching Playwright browser...
+[Browser] Ready
+[TTS] I have: it's a little bit, what can i do for you?  youtube best transmits ever.
+[Timing] TTS: 5.73s
+
+
+
+how's it listening over 30 seconds?
+
+[STT] Using Whisper (32.3s)
+
+
+
+
+
+why's it trying to use Gemini here?
+
+[Heard]: i have. it's a little bit.  what can i do for you?  you two best transmits ever.
+[Brain] Escalating to Mistral
+[Brain] Mistral raw response:  {
+  "summary": "Searching for the two best transmits ever.",
+  "route": "gemini",
+  "steps": [
+    {"action": "web_search", "params": {"query": "two
+[TTS]
+
+
+
+
+
+
+
+[Heard]: youtube best trance mix ever
+[Browser] Launching Playwright browser...
+[Browser] Ready
+[TTS] I have: youtube best trance mix ever
+[Timing] TTS: 3.27s
+[STT] Using Whisper (41.7s)
+[STT] Transcription time: 0.1s
+[Timing] STT: 1.86s
+[Heard]: i have. youtube best transmics ever.  select. enter.
+[TTS] I have: i have. youtube best transmics ever.  select. enter.
+[Timing] TTS: 4.06s
