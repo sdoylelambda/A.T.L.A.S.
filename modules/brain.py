@@ -19,6 +19,7 @@ class Brain:
         self.vector_db = faiss.IndexFlatL2(384)
         self.memory_texts = []
         self._encoder = None  # lazy load
+        self.debug = True
 
     # ─── core query method ───────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ class Brain:
                 options={
                     "num_ctx": int(cfg.get("num_ctx", 512)),
                     "temperature": float(cfg.get("temperature", 0.1)),
-                    "num_predict": int(cfg.get("max_tokens", 50)),
+                    "num_predict": int(cfg.get("max_tokens", 500)),  # minimum output tokens
                 }
             )
             return response["message"]["content"]
@@ -199,9 +200,10 @@ class Brain:
             }
 
             Available tools and their params:
-            - create_file: {"path": "filename.txt", "content": "optional content"}
+            - create_file: {"path": "filename.txt", "content": "optional short content"}
             - create_dir: {"path": "dirname"}
-            - write_code: {"path": "file.py", "content": "code here"}
+            - write_code: {"path": "file.py", "content": "code"}  ← simple code only, max 10 lines
+            - generate_code: {"path": "file.py", "description": "what the code should do"}  ← use for ANY real code
             - read_file: {"path": "filename.txt"}
             - run_script: {"path": "script.py"}
             - list_dir: {"path": "."}
@@ -209,6 +211,9 @@ class Brain:
             - web_search: {"query": "search terms"}
             - browser_navigate: {"url": "https://..."}
             - browser_search: {"query": "search terms"}
+            
+            IMPORTANT: Always use generate_code instead of write_code when writing 
+            actual code content. Never put more than 10 lines of code in write_code content.
 
             Set route to "claude" for complex reasoning or long document analysis.
             Set route to "gemini" for real-time or current information.
@@ -224,7 +229,13 @@ class Brain:
             User: write a python class called Calculator with add and subtract methods
             {"summary": "Writing Calculator class with add and subtract methods.", "route": "local", "steps": [{"action": "write_code", "params": {"path": "calculator.py", "content": "class Calculator:\\n    def add(self, a, b):\\n        return a + b\\n\\n    def subtract(self, a, b):\\n        return a - b"}}]}
 
+            User: create a file called backend.py with flask basic methods
+            {"summary": "Generating Flask backend in backend.py.", "route": "local", "steps": [{"action": "generate_code", "params": {"path": "backend.py", "description": "Flask app with index route, about route, and a REST API endpoint returning JSON"}}]}
             Only return JSON. No explanation. No markdown. No code blocks.""").strip()
+
+        if self.debug:
+            cfg = self.models["orchestrator"]
+            print(f"[Brain] Using num_ctx: {cfg.get('num_ctx', 512)}")
 
         command = command.replace("ESCALATE", "").strip()
 

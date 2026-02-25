@@ -25,7 +25,7 @@ class Observer:
         self.mouth = TTSModule(use_mock=config["audio"].get("use_mock", False))
         self.browser_controller = BrowserController()
         self.launcher = AppLauncher(window_controller, self.browser_controller)
-        self.executor = ToolExecutor(self.launcher, self.browser_controller)
+        self.executor = ToolExecutor(self.launcher, self.browser_controller, self.brain)
         self.stt = HybridSTT(
             whisper_model="small",
             fw_model="small",

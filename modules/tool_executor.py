@@ -6,9 +6,10 @@ from custom_exceptions import PlanExecutionError
 
 
 class ToolExecutor:
-    def __init__(self, app_launcher, browser_controller):
+    def __init__(self, app_launcher, browser_controller, brain):
         self.launcher = app_launcher  # reuse existing launcher, don't duplicate
         self.browser = browser_controller
+        self.brain = brain
         self.workspace = Path("workspace")  # location projects created by Jarvis are stored.
         self.workspace.mkdir(exist_ok=True)  # create on first run, safe if already exists
 
@@ -17,6 +18,7 @@ class ToolExecutor:
             "create_file":      self._create_file,
             "create_dir":       self._create_dir,
             "write_code":       self._write_code,
+            "generate_code":    self._generate_code,
             "read_file":        self._read_file,
             "run_script":       self._run_script,
             "list_dir":         self._list_dir,
@@ -100,6 +102,34 @@ class ToolExecutor:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content)
         return f"Written code to: {p}"
+
+    async def _generate_code(self, path: str, description: str, **kwargs) -> str:
+        """Delegate code generation to code model, then write to file."""
+        print(f"[ToolExecutor] Generating code for: {description}")
+
+        code = self.brain.query(
+            f"Write complete Python code for: {description}. "
+            f"Return only working code. No explanation. No markdown.",
+            model_key="code"
+        )
+
+        # strip markdown code blocks if model adds them anyway
+        if "```" in code:
+            lines = code.split("\n")
+            lines = [l for l in lines if not l.startswith("```")]
+            code = "\n".join(lines).strip()
+
+        p = Path(path)
+        if not p.is_absolute():
+            p = self.workspace / p
+        if p.exists():
+            raise PlanExecutionError(
+                {"action": "generate_code"},
+                f"{p} already exists."
+            )
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(code)
+        return f"Done, sir. Code written to: {p}"
 
     async def _read_file(self, path: str, **kwargs) -> str:
         p = Path(path)
