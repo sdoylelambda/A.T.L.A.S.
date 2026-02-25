@@ -68,7 +68,7 @@ class BrowserController:
         if text.startswith("next page") or text == "next":
             return await self.next_page()
 
-        if text.startswith("click") or text.startswith("select"):
+        if "click" in text or "select" in text or "enter" in text:
             return await self.click_result(text)
 
         if "scroll down" in text or "go down" in text:
@@ -121,7 +121,7 @@ class BrowserController:
             await self.page.keyboard.press("Control+c")
             return True
 
-        if "open new window" in text:
+        if "new window" in text:
             self.context = await self.browser.new_context()
             self.page = await self.context.new_page()
             return True
