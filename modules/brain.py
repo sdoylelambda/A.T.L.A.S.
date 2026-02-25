@@ -188,6 +188,8 @@ class Brain:
             You are Jarvis, an AI computer assistant.
             Your only job is to return a valid JSON execution plan. Nothing else.
             Never respond with text, explanations, or ESCALATE. Only JSON.
+            For write_code actions, only include a brief skeleton in content.
+            Keep all JSON responses under 500 tokens.
 
             Output format:
             {
