@@ -22,7 +22,7 @@ llm:
     orchestrator:
       name: mistral
       # set for shorter commands - double if cut off
-      num_ctx: 4096
+      num_ctx: 8092
       # low-medium - consistent JSON output, handles varied phrasing
       temperature: 0.2
       max_tokens: 500
@@ -37,7 +37,7 @@ llm:
     code:
       name: deepseek-coder:6.7b
       # longer context for full code output - bump to 8192 if truncating complex outputs
-      num_ctx: 4096
+      num_ctx: 8092
       # nearly deterministic - correct code over creative code
       temperature: 0.1
 

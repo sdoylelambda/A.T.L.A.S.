@@ -16,6 +16,7 @@ class Observer:
         self.window_controller = window_controller
         self.config = config
         self.paused = False
+        self.cancelled = False
         self.debug = True
         self._last_spoken = ""
         self._last_spoken_time = 0
@@ -90,6 +91,10 @@ class Observer:
                     "copy", "paste", "select", "click", "escape"
                     # app shortcuts
                     "save", "run", "clear",
+                    # build commands
+                    "yeah", "yep", "do",  "it", "proceed",
+                    "sure", "go", "ahead", "affirmative", "correct",
+                    "build", "sounds", "good"
                 ]
                 if len(words) <= 1 and not any(cmd in text for cmd in known_short):
                     print(f"[STT] Too short, skipping: {text}")
@@ -175,57 +180,202 @@ class Observer:
             await asyncio.sleep(0.01)
 
     async def handle_brain_command(self, command: str):
+        """Main entry point for brain commands."""
+        self.cancelled = False
+        cancel_task = asyncio.create_task(self._listen_for_cancel())
+        notice_task = asyncio.create_task(self._thinking_notice())
+
         try:
-            plan = self.brain.process(command)
-            summary = plan.get("summary", "")
+            try:
+                self.face.set_state("thinking")
+                plan = await asyncio.to_thread(self.brain.process, command)
+                notice_task.cancel()
 
-            # clean summary — remove any JSON bleed
-            if "{" in summary:
-                summary = summary.split("{")[0].strip()
+                if self.cancelled:
+                    await self.say("Cancelled, sir.")
+                    return
 
-            if plan.get("steps"):
-                if len(plan["steps"]) > 1:
-                    await self.say(plan["summary"])
-                results = await self.executor.execute_plan(plan)
-                # only speak the LAST result, not all of them
-                if results:
-                    await self.say(results[-1])
-            else:
-                await self.say(plan["summary"])
+                await self._execute_plan_with_confirm(plan, command)
 
-        except PermissionRequired as e:
-            await self.say(
-                f"This command needs to go to {e.model_key}. "
-                f"Say yes to send it or no to cancel."
-            )
+            except PermissionRequired as e:
+                notice_task.cancel()
+                await self._handle_permission(e, command)
+
+            except PlanExecutionError as e:
+                notice_task.cancel()
+                await self._handle_plan_error(e, plan)
+
+            except ModelUnavailable as e:
+                notice_task.cancel()
+                await self._handle_model_unavailable(e, command)
+
+            except Exception as e:
+                notice_task.cancel()
+                print(f"[Brain Error]: {e}")
+                self.face.set_state("error")
+                if len(command.split()) > 3:
+                    await self.say("I ran into a problem with that one, sir.")
+
+        finally:
+            for task in [cancel_task, notice_task]:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+            self.face.set_state("listening")
+
+    async def _thinking_notice(self):
+        """Speak 'one moment' if Brain takes too long."""
+        await asyncio.sleep(7.0)
+        if not self.cancelled:
+            await self.say("One moment please, sir.")
+
+    async def _listen_for_cancel(self):
+        """Always-on cancel listener running during brain execution."""
+        while not self.cancelled:
+            try:
+                if self.ears.paused:
+                    await asyncio.sleep(0.1)
+                    continue
+                audio_bytes, duration = await asyncio.wait_for(
+                    self.ears.listen(), timeout=2.0
+                )
+                if audio_bytes:
+                    text = self.stt.transcribe(audio_bytes, duration).lower().strip()
+                    if any(w in text for w in ["cancel", "stop", "never mind", "forget it"]):
+                        print("[Observer] Cancel detected during execution!")
+                        self.cancelled = True
+                        self.mouth.stop()
+                        return
+            except asyncio.TimeoutError:
+                continue
+            except Exception:
+                continue
+
+    async def _execute_plan_with_confirm(self, plan: dict, command: str):
+        """Speak summary, confirm with user, then execute."""
+        summary = plan.get("summary", "")
+        if "{" in summary:
+            summary = summary.split("{")[0].strip()
+
+        if not plan.get("steps"):
+            await self.say(summary)
+            return
+
+        await self.say(summary)
+        await self.say("Shall I proceed, sir?")
+
+        audio_bytes, duration = await self.ears.listen()
+        response = self.stt.transcribe(audio_bytes, duration).lower().strip() if audio_bytes else ""
+
+        confirmed = any(w in response for w in [
+            "yes", "yeah", "yep", "do", "it", "proceed",
+            "sure", "ahead", "affirmative", "correct",
+            "build", "sounds", "good"
+        ])
+
+        await asyncio.sleep(3.5)  # adjust wait time before cancel here (move to config?)
+
+        if not confirmed:
+            await self.say("Understood, sir. Cancelled.")
+            return
+
+        await self.say("Building it now, sir.")
+
+        if self.cancelled:
+            await self.say("Cancelled, sir.")
+            return
+
+        results = await self.executor.execute_plan(
+            plan, cancelled=lambda: self.cancelled
+        )
+
+        if self.cancelled:
+            await self.say("Cancelled, sir.")
+            return
+
+        if results:
+            await self.say(results[-1])
+
+    async def _handle_permission(self, e: PermissionRequired, command: str):
+        """Handle API permission requests."""
+        await self.say(
+            f"This command needs to go to {e.model_key}. "
+            f"Say yes to send it or no to cancel."
+        )
+        audio_bytes, duration = await self.ears.listen()
+        response = self.stt.transcribe(audio_bytes, duration).lower().strip() if audio_bytes else ""
+
+        if any(w in response for w in ["yes", "yeah", "yep", "do it", "send", "sure"]):
+            plan = self.brain.process_with_permission(command, e.model_key)
+            await self.say(plan.get("summary", "Done, sir."))
+        else:
+            await self.say("Cancelled. Handling locally instead, sir.")
+            await self._run_local_plan(command)
+
+    async def _handle_plan_error(self, e: PlanExecutionError, plan: dict):
+        """Handle plan execution errors including overwrite confirmation."""
+        print(f"[ToolExecutor Error] step={e.step}, reason={e.reason}")
+
+        if "already exists" in e.reason:
+            await self.say(e.reason)
             audio_bytes, duration = await self.ears.listen()
-            response = self.stt.transcribe(audio_bytes, duration) if audio_bytes else ""
-            response = response.lower().strip() if response else ""
-
-            if any(word in response for word in ["yes", "yeah", "yep", "do it", "send", "sure", "build"]):
-                plan = self.brain.process_with_permission(command, e.model_key)
-                await self.say(plan["summary"])
-            else:
-                await self.say("Cancelled. I'll handle it locally instead.")
-                plan = self.brain.create_plan(command)
-                await self.say(plan["summary"])
-
-        except PlanExecutionError as e:
-            print(f"[ToolExecutor Error] step={e.step}, reason={e.reason}")
+            if audio_bytes:
+                response = self.stt.transcribe(audio_bytes, duration).lower().strip()
+                if any(w in response for w in [
+                    "yes", "overwrite", "over write", "replace", "do it", "sure"
+                ]):
+                    for step in plan["steps"]:
+                        step["params"]["overwrite"] = True
+                    results = await self.executor.execute_plan(
+                        plan, cancelled=lambda: self.cancelled
+                    )
+                    if results:
+                        await self.say(results[-1])
+                else:
+                    await self.say("Leaving the existing file untouched, sir.")
+        else:
             await self.say(f"I ran into a problem, sir. {e.reason}")
 
-        except ModelUnavailable as e:
-            print(f"[Brain] Model unavailable: {e.model_key}")
-            await self.say(
-                f"The {e.model_key} model is currently disabled, sir. Handling locally instead."
-            )
-            plan = self.brain.create_plan(command)
-            await self.say(plan["summary"])
+    async def _handle_model_unavailable(self, e: ModelUnavailable, command: str):
+        """Handle unavailable model by falling back to local."""
+        print(f"[Brain] Model unavailable: {e.model_key}")
+        await self.say(
+            f"The {e.model_key} model is unavailable, sir. Handling locally instead."
+        )
+        await self._run_local_plan(command)
 
-        except Exception as e:
-            print(f"[Brain Error]: {e}")
-            self.face.set_state("error")
-            await self.say("I ran into a problem with that one, sir.")
+    async def _run_local_plan(self, command: str):
+        """Run a plan locally without API models."""
+        plan = self.brain.create_plan(command)
+        summary = plan.get("summary", "")
+        if "{" in summary:
+            summary = summary.split("{")[0].strip()
+
+        if plan.get("steps"):
+            await self.say(summary)
+            await self.say("Shall I proceed, sir?")
+
+            audio_bytes, duration = await self.ears.listen()
+            response = self.stt.transcribe(audio_bytes, duration).lower().strip() if audio_bytes else ""
+
+            confirmed = any(w in response for w in [
+                "yes", "yeah", "yep", "do it", "proceed",
+                "sure", "go ahead", "affirmative", "correct", "build"
+            ])
+
+            if not confirmed:
+                await self.say("Understood, sir. Cancelled.")
+                return
+
+            results = await self.executor.execute_plan(
+                plan, cancelled=lambda: self.cancelled
+            )
+            if results:
+                await self.say(results[-1])
+        else:
+            await self.say(summary)
 
     def _similarity(self, a: str, b: str) -> float:
         """Simple word overlap similarity."""
@@ -244,7 +394,12 @@ class Observer:
         self._last_spoken = text.lower().strip()
         self._last_spoken_time = time.time()
         await self.mouth.speak(text)
-        await asyncio.sleep(1.0)  # longer settle time
+        # check if canceled during speech
+        if self.cancelled:
+            self.ears.paused = False
+            return
+        await asyncio.sleep(0.5)
+        self.ears.paused = False
         # flush any audio captured during speech
         if self.ears.audio_stream:
             try:

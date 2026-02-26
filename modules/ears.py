@@ -22,6 +22,7 @@ class Ears:
         self.start_threshold = 32767  # max possible value — won't trigger until calibrated
         self.stop_threshold = 16000
         self.noise_floor = None
+        self._stream_lock = asyncio.Lock()
 
         # speech confirmation — prevents AC spikes triggering false starts
         self.speech_confirm_chunks = 3
@@ -105,15 +106,24 @@ class Ears:
         samples = []
         start = time.time()
 
-        while time.time() - start < seconds:
-            data = await asyncio.to_thread(
-                self.audio_stream.read,
-                self.chunk_size,
-                exception_on_overflow=False
-            )
-            audio_np = np.frombuffer(data, dtype=np.int16)
-            rms = np.sqrt(np.mean(audio_np.astype(np.float32) ** 2))
-            samples.append(rms)
+        async with self._stream_lock:
+            while time.time() - start < seconds:
+                try:
+                    data = await asyncio.to_thread(
+                        self.audio_stream.read,
+                        self.chunk_size,
+                        exception_on_overflow=False
+                    )
+                    audio_np = np.frombuffer(data, dtype=np.int16)
+                    rms = np.sqrt(np.mean(audio_np.astype(np.float32) ** 2))
+                    samples.append(rms)
+                except OSError as e:
+                    print(f"[Ears] Calibration read error: {e}")
+                    return  # bail out early, don't update thresholds
+
+        if not samples:
+            print("[Ears] Calibration got no samples, skipping threshold update")
+            return
 
         # use 90th percentile instead of mean — handles AC spikes better
         self.noise_floor = float(np.percentile(samples, 90))
@@ -177,11 +187,12 @@ class Ears:
                 continue
 
             try:
-                data = await asyncio.to_thread(
-                    self.audio_stream.read,
-                    self.chunk_size,
-                    exception_on_overflow=False
-                )
+                async with self._stream_lock:
+                    data = await asyncio.to_thread(
+                        self.audio_stream.read,
+                        self.chunk_size,
+                        exception_on_overflow=False
+                    )
             except OSError as e:
                 print(f"[Ears] Stream read error: {e}, resetting...")
                 self.audio_stream = None

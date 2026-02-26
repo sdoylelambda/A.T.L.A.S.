@@ -68,7 +68,7 @@ class BrowserController:
         if text.startswith("next page") or text == "next":
             return await self.next_page()
 
-        if "click" in text or "select" in text or "enter" in text:
+        if "click" in text or "select" in text:  # fix this
             return await self.click_result(text)
 
         if "scroll down" in text or "go down" in text:
@@ -109,7 +109,7 @@ class BrowserController:
             self.page = await self.context.new_page()
             return True
 
-        if "full screen" in text or "fullscreen" in text:
+        if "full screen" in text or "fullscreen" in text:  # fix this
             await self.page.keyboard.press("F11")
             return True
 
@@ -129,7 +129,8 @@ class BrowserController:
         # navigate directly to URL
         TLDS = (".com", ".org", ".net", ".io", ".dev", ".ai", ".edu", ".gov", ".co", ".tv")
 
-        if text.startswith("navigate to ") or text.startswith("open "):
+        # navigate to gets forcing ESCALATE mistral gets proper command but does not execute
+        if text.startswith("navigate to ") or text.startswith("open "):  # open? conflict with open program?
             for trigger in ["navigate to ", "open "]:
                 if text.startswith(trigger):
                     url = text.replace(trigger, "", 1).strip()
@@ -207,6 +208,7 @@ class BrowserController:
     # CLICK RESULT
     # ==========================================
 
+    # add these to allow commands - currently skipped to short
     async def click_result(self, text: str):
         words = text.split()
         if "first" in words:

@@ -33,32 +33,36 @@ class ToolExecutor:
 
     # ─── main entry point ─────────────────────────────────────────────────
 
-    async def execute_plan(self, plan: dict) -> list[str]:
+    async def execute_plan(self, plan: dict, cancelled=None) -> list[str]:
         """
         Execute all steps in a plan.
         Returns list of result strings for Jarvis to speak.
         """
         results = []
-        steps = plan.get("steps", [])
+        for step in plan.get("steps", []):
+            # check cancel between each step
+            if cancelled and cancelled():
+                print("[ToolExecutor] Cancelled between steps.")
+                break
 
-        if not steps:
-            return [plan.get("summary", "Done.")]
-
-        for step in steps:
             action = step.get("action")
             params = step.get("params", {})
+            tool = self.tools.get(action)
 
-            if action not in self.tools:
-                raise PlanExecutionError(step, f"Unknown tool: {action}")
+            if not tool:
+                print(f"[ToolExecutor] Unknown action: {action}")
+                continue
 
             try:
-                result = await self.tools[action](**params)
-                results.append(result)
+                result = await tool(**params)
                 print(f"[ToolExecutor] ✅ {action}: {result}")
-            except PlanExecutionError:
-                raise
+                results.append(result)
+            except PlanExecutionError as e:
+                print(f"[ToolExecutor] ❌ {action}: {e}")
+                results.append(str(e))
             except Exception as e:
-                raise PlanExecutionError(step, str(e))
+                print(f"[ToolExecutor] ❌ {action} unexpected error: {e}")
+                results.append(f"Something went wrong with {action}, sir.")
 
         return results
 
@@ -103,31 +107,101 @@ class ToolExecutor:
         p.write_text(content)
         return f"Written code to: {p}"
 
-    async def _generate_code(self, path: str, description: str, **kwargs) -> str:
+    async def _generate_code(self, path: str, description: str = "", overwrite: bool = False, **kwargs) -> str:
         """Delegate code generation to code model, then write to file."""
         print(f"[ToolExecutor] Generating code for: {description}")
 
+        # if description looks like code, Mistral passed wrong content
+        if "<" in description or "def " in description or len(description) > 500:
+            print("[ToolExecutor] Bad description received, using path as context")
+            description = f"typical {Path(path).suffix.lower()} file for {Path(path).stem}"
+
+        # determine language from file extension
+        ext = Path(path).suffix.lower()
+        lang_map = {
+            ".py": "Python",
+            ".js": "JavaScript",
+            ".jsx": "React JSX",
+            ".ts": "TypeScript",
+            ".tsx": "React TSX",
+            ".html": "HTML",
+            ".css": "CSS",
+            ".dart": "Dart",
+        }
+        lang = lang_map.get(ext, "code")
+
         code = self.brain.query(
-            f"Write complete working code for: {description}. "
-            f"Return ONLY code. No explanation. No apology. No markdown. No comments about requirements. "
-            f"Start immediately with the first line of code.",
+            f"Write complete working {lang} code for: {description}.\n"
+            f"RULES:\n"
+            f"- Return ONLY raw code, nothing else\n"
+            f"- No explanations, no apologies, no comments about requirements\n"
+            f"- No markdown, no code blocks, no backticks\n"
+            f"- If you don't know exactly what to write, make your best attempt\n"
+            f"- Start with the very first line of code immediately\n"
+            f"- Never say 'I'm sorry' or 'I cannot' or 'However'\n"
+            f"- Just write the best code you can",
             model_key="code"
         )
 
-        # strip mark down code blocks if model adds them anyway
+        # strip markdown code blocks if model adds them anyway
         if "```" in code:
             lines = code.split("\n")
             lines = [l for l in lines if not l.startswith("```")]
-            code = "\n".join(lines).strip()
+            code = "\n".join(lines)
 
+        # separate code from explanation text
+        lines = code.split("\n")
+        code_lines = []
+        code_started = False
+
+        for line in lines:
+            if not code_started:
+                if (line.startswith("def ") or
+                        line.startswith("class ") or
+                        line.startswith("import ") or
+                        line.startswith("from ") or
+                        line.startswith("<!") or
+                        line.startswith("<html") or
+                        line.startswith("const ") or
+                        line.startswith("function ") or
+                        line.startswith("var ") or
+                        line.startswith("let ") or
+                        line.startswith("#!") or
+                        line.startswith("<?") or
+                        line.strip().startswith("@")):
+                    code_started = True
+                    code_lines.append(line)
+            else:
+                if line.startswith("This ") or line.startswith("Note:") or line.startswith("Please"):
+                    break
+                code_lines.append(line)
+
+        if code_lines:
+            stripped_lines = [l for l in lines if l not in code_lines]
+            if stripped_lines:
+                print(f"[ToolExecutor] ⚠️ DeepSeek added {len(stripped_lines)} lines of explanation, commenting out")
+
+                ext = Path(path).suffix.lower()
+                if ext in (".html", ".css"):
+                    commented = [f"<!-- {l} -->" for l in stripped_lines if l.strip()]
+                else:
+                    commented = [f"# {l}" for l in stripped_lines if l.strip()]
+
+                code = "\n".join(code_lines) + "\n\n" + "\n".join(commented)
+            else:
+                code = "\n".join(code_lines)
+
+        # write to file
         p = Path(path)
         if not p.is_absolute():
             p = self.workspace / p
-        if p.exists():
+
+        if p.exists() and not overwrite:  # ← now resolved
             raise PlanExecutionError(
                 {"action": "generate_code"},
-                f"{p} already exists."
+                f"{p.name} already exists, sir. Say overwrite to replace it."
             )
+
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(code)
         return f"Done, sir. Code written to: {p}"

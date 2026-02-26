@@ -23,7 +23,8 @@ class Brain:
 
     # ─── core query method ───────────────────────────────────────────────
 
-    def query(self, prompt: str, model_key: str = "orchestrator", system: str = None) -> str:
+    def query(self, prompt: str, model_key: str = "orchestrator",
+              system: str = None, num_ctx_override: int = None) -> str:
         """Single entry point for all LLM calls."""
 
         # local ollama models
@@ -38,9 +39,9 @@ class Brain:
                 model=cfg["name"],
                 messages=messages,
                 options={
-                    "num_ctx": int(cfg.get("num_ctx", 512)),
+                    "num_ctx": int(num_ctx_override or cfg.get("num_ctx", 512)),
                     "temperature": float(cfg.get("temperature", 0.1)),
-                    "num_predict": int(cfg.get("max_tokens", 500)),  # minimum output tokens
+                    "num_predict": int(cfg.get("max_tokens", 500)),
                 }
             )
             return response["message"]["content"]
@@ -221,38 +222,46 @@ class Brain:
             - browser_navigate: {"url": "https://..."}
             - browser_search: {"query": "search terms"}
             
-            IMPORTANT: Always use generate_code instead of write_code when writing 
-            actual code content. Never put more than 10 lines of code in write_code content.
-            
-            NEVER use write_code and generate_code together for the same file.
-            Use generate_code for ALL code files. Never use write_code for Python files.
-
+            IMPORTANT RULES:
+            - Always use generate_code for ANY code files including .py .js .html .css .ts .jsx
+            - Never use write_code and generate_code together for the same file
+            - Never put more than 10 lines of code in write_code content
+            - Keep JSON responses concise — descriptions only, never actual code content
+    
             Set route to "claude" for complex reasoning or long document analysis.
             Set route to "gemini" for real-time or current information.
             Otherwise route is "local".
-
+    
             Examples:
             User: create a file called hello.txt
             {"summary": "Creating hello.txt in workspace.", "route": "local", "steps": [{"action": "create_file", "params": {"path": "hello.txt", "content": ""}}]}
-
+    
             User: create a folder called projects then add a file called main.py
-            {"summary": "Creating projects folder with main.py inside.", "route": "local", "steps": [{"action": "create_dir", "params": {"path": "projects"}}, {"action": "create_file", "params": {"path": "projects/main.py", "content": ""}}]}
-
-            User: write a python class called Calculator with add and subtract methods
-            {"summary": "Writing Calculator class with add and subtract methods.", "route": "local", "steps": [{"action": "write_code", "params": {"path": "calculator.py", "content": "class Calculator:\\n    def add(self, a, b):\\n        return a + b\\n\\n    def subtract(self, a, b):\\n        return a - b"}}]}
-
+            {"summary": "Creating projects folder with main.py inside.", "route": "local", "steps": [{"action": "create_dir", "params": {"path": "projects"}}, {"action": "generate_code", "params": {"path": "projects/main.py", "description": "empty python file with main guard"}}]}
+    
             User: create a file called backend.py with flask basic methods
-            {"summary": "Generating Flask backend in backend.py.", "route": "local", "steps": [{"action": "generate_code", "params": {"path": "backend.py", "description": "Flask app with index route, about route, and a REST API endpoint returning JSON"}}]}
+            {"summary": "Generating Flask backend in backend.py.", "route": "local", "steps": [{"action": "generate_code", "params": {"path": "backend.py", "description": "Flask app with index route, about route, and REST API endpoint returning JSON"}}]}
+    
+            User: create a homepage.html with about and contact sections
+            {"summary": "Generating homepage.html with sections.", "route": "local", "steps": [{"action": "generate_code", "params": {"path": "homepage.html", "description": "HTML page with inline CSS, home, about us, contact sections"}}]}
+    
             Only return JSON. No explanation. No markdown. No code blocks.""").strip()
 
-        if self.debug:
-            cfg = self.models["orchestrator"]
-            print(f"[Brain] Using num_ctx: {cfg.get('num_ctx', 512)}")
-
         command = command.replace("ESCALATE", "").strip()
+        num_ctx = self._get_num_ctx(command)
 
-        # debug — see exactly what Mistral returns
-        result = self.query(command, model_key="orchestrator", system=system)
+        # log why this ctx was chosen
+        command_lower = command.lower()
+        code_keywords = ["class", "function", "flask", "react", "html", "css", "javascript", "api"]
+        reason = "code" if any(kw in command_lower for kw in code_keywords) else f"{len(command.split())} words"
+        print(f"[Brain] num_ctx: {num_ctx} ({reason})")
+
+        result = self.query(
+            command,
+            model_key="orchestrator",
+            system=system,
+            num_ctx_override=num_ctx
+        )
         print(f"[Brain] Mistral raw response: {result[:200]}")
 
         try:
@@ -263,7 +272,6 @@ class Brain:
                 return json.loads(json_str)
         except json.JSONDecodeError as e:
             print(f"[Brain] JSON parse failed: {e}")
-            print(f"[Brain] Attempted to parse: {json_str[:200]}")
 
         return {"summary": result, "steps": [], "route": "local"}
 
@@ -316,6 +324,43 @@ class Brain:
         q_vec = self.encoder.encode([query])
         _, indices = self.vector_db.search(q_vec, k=k)
         return [self.memory_texts[i] for i in indices[0]]
+
+    # ─── determine tokens needed  ───────────────────────────────────────────
+
+    def _get_num_ctx(self, command: str) -> int:
+        words = len(command.split())
+        command_lower = command.lower()
+
+        code_keywords = [
+            "class", "function", "method", "flask", "django", "react",
+            "api", "database", "auth", "authentication", "script",
+            "html", "css", "javascript", "typescript", "component",
+            "module", "library", "framework", "backend", "frontend",
+            "py", "dart", "js", "jsx"
+        ]
+
+        # also check for file extensions in command
+        code_extensions = [".py", ".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".dart"]
+        has_code_extension = any(ext in command_lower for ext in code_extensions)
+
+        is_code = any(kw in command_lower for kw in code_keywords) or has_code_extension
+
+        # multi-step commands need more context
+        multi_keywords = ["and", "then", "also", "with", "plus", "add"]
+        is_multi = sum(1 for kw in multi_keywords if kw in command_lower) >= 2
+
+        if is_code and words > 15:
+            return 8192  # complex code generation
+        elif is_code:
+            return 4096  # simple code generation
+        elif is_multi and words > 20:
+            return 4096  # complex multi-step
+        elif words <= 10:
+            return 1024  # simple single commands
+        elif words <= 20:
+            return 2048  # medium commands
+        else:
+            return 4096  # long commands
 
 
 
