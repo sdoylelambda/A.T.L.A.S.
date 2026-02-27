@@ -394,6 +394,7 @@ class Observer:
         self.ears.paused = True
         self._last_spoken = text.lower().strip()
         self._last_spoken_time = time.time()
+        self.face.set_caption(text)  # ← show in GUI
         await self.mouth.speak(text)
         # check if canceled during speech
         if self.cancelled:
@@ -415,6 +416,15 @@ class Observer:
         if self.debug:
             print(f"[Observer] Ears resumed")
 
+    def _cancel_all(self):
+        self.cancelled = True
+        try:
+            self.mouth.stop()
+        except Exception as e:
+            print(f"[Observer] Error stopping TTS: {e}")
+        self.ears.paused = False
+        self.face.set_state("listening")
+        print("[Observer] Cancelled via GUI")
 
 # import time
 # import asyncio
