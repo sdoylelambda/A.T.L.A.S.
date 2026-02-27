@@ -28,12 +28,12 @@ llm:
       max_tokens: 500
     classifier:
       name: phi3:mini
-      # set for short commands - double if cut off
-      num_ctx: 512
+      # set for 3 sentence max responses - double if cut off
+      num_ctx: 1024
       # deterministic - no creativity needed, just classify
       temperature: 0.0
-      # hard output cap - one sentence max - increase for longer responses from phi3 (basic AI)
-      max_tokens: 50
+      # hard output cap - 3 sentence max - increase for longer responses from phi3 (basic AI)
+      max_tokens: 150
     code:
       name: deepseek-coder:6.7b
       # longer context for full code output - bump to 8192 if truncating complex outputs

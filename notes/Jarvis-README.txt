@@ -48,4 +48,14 @@ Project runs on secondary computer. (Reduces load on primary computer, periphals
 [] - Move files from / that aren't needed there
 [] - Remove extra code/files/etc.
 [] - More AI models for more tasks
+    [] - General question escalation AI
+    [] - Write email/paper/pdf AI
 [] - ask what can you do? get response
+[] - config linux/mac/windows versions
+[] - top level debug? or keep per file?
+[] - research {topic} create md and give short audio summary
+[] - RULE: One sentence max for all responses. --- make 2 sentences?
+[] - calendar integration
+    [] - what do i have today? add event
+    [] - timer --- remind me this 30 minutes to call jon
+[] - test performance under load/multitasking
