@@ -134,6 +134,7 @@ class Brain:
             Jarvis: Fully operational, sir.
             User: what is 2 plus 2
             Jarvis: 4, sir.""").strip()
+        # Uses too many tokens
         # system = textwrap.dedent("""
         #     You are Jarvis, an AI assistant with dry British wit inspired by Iron Man.
         #     Always address the user as 'sir'. Never use names or Mr./Mrs.

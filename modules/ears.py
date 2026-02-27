@@ -129,16 +129,17 @@ class Ears:
         self.noise_floor = float(np.percentile(samples, 90))
 
         if self.noise_floor > 5000:
-            print(f"[Ears] WARNING: Noise floor too high ({int(self.noise_floor)}), using static thresholds")
+            if self.debug:
+                print(f"[Ears] WARNING: Noise floor too high ({int(self.noise_floor)}), using static thresholds")
             self.start_threshold = 8000
             self.stop_threshold = 4000
         else:
             self.start_threshold = self.noise_floor * 4.0
             self.stop_threshold = self.noise_floor * 2.0
-
-        print(f"[Ears] Noise floor={int(self.noise_floor)} "
-              f"start={int(self.start_threshold)} "
-              f"stop={int(self.stop_threshold)}")
+        if self.debug:
+            print(f"[Ears] Noise floor={int(self.noise_floor)} "
+                  f"start={int(self.start_threshold)} "
+                  f"stop={int(self.stop_threshold)}")
 
     async def auto_calibrate(self, interval: int = 20):
         """Recalibrate noise floor every interval seconds, only during silence."""

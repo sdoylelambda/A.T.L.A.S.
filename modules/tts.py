@@ -49,6 +49,15 @@ class TTSModule:
         finally:
             self._current_play = None
 
+    def stop(self):
+        """Stop current playback immediately."""
+        if self._current_play is not None:
+            try:
+                self._current_play.stop()
+            except Exception:
+                pass
+            self._current_play = None
+
 
 # This works too, just a different option using tacotron2 instead - may hallucinate more
 
