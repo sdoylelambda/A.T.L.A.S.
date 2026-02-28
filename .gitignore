@@ -32,3 +32,6 @@ config.yaml
 
 # Projects create by Jarvis
 workspace/
+
+# Remember face location
+.window_pos

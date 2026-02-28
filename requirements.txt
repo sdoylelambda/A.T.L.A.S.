@@ -26,3 +26,4 @@ playwright
 anthropic
 ollama
 google-genai
+python-qt5

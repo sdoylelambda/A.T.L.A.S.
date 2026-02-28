@@ -118,6 +118,7 @@ class Brain:
 
             ESCALATE for anything computer-related: files, code, apps, web, scripts, system.
             ESCALATE if unsure. Never write code. Never pretend to do computer tasks.
+            ESCALATE if I'm sorry or I can't
 
             Examples:
             User: create a file
@@ -309,7 +310,7 @@ class Brain:
         """
         Layered routing:
         1. phi3 tries to handle it directly
-        2. Mistral handles complex/multi-step
+        2. Mistral handles complex/multistep
         3. API models as last resort
         """
         # layer 1 — phi3 quick answer

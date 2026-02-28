@@ -1,8 +1,13 @@
 import asyncio
 import yaml
 import threading
-from PyQt5.QtWidgets import QApplication
+import os
 import sys
+
+# must be set before QApplication is created
+os.environ["QT_WAYLAND_APPID"] = "jarvis.assistant"
+
+from PyQt5.QtWidgets import QApplication
 from modules.face import FaceController
 from modules.window_controller import WindowController
 from modules.observer import Observer
@@ -13,11 +18,13 @@ def run_async(face, config):
         window_controller = WindowController()
         observer = Observer(face, window_controller, config)
 
-        # wire up GUI callbacks
+        loop = asyncio.get_running_loop()
+
         face.on_cancel = observer._cancel_all
         face.on_mute = lambda muted: setattr(observer.ears, 'paused', muted)
-        face.on_command = lambda text: asyncio.create_task(
-            observer.handle_brain_command(text)
+        face.on_command = lambda text: asyncio.run_coroutine_threadsafe(
+            observer.handle_brain_command(text),
+            loop
         )
 
         await observer.listen_and_respond()

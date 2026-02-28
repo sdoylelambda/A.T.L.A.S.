@@ -1,19 +1,22 @@
+import math
 import numpy as np
 from queue import Queue
+import os
+
+WINDOW_POS_FILE = os.path.join(os.path.dirname(__file__), "..", ".window_pos")
+IS_WAYLAND = os.environ.get("WAYLAND_DISPLAY") is not None
 
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLineEdit, QLabel, QSizePolicy, QDesktopWidget
+    QPushButton, QLineEdit, QLabel, QDesktopWidget
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt5.QtGui import QFont, QColor, QPalette
 
-from vispy import scene, app
-import vispy.app
+from vispy import scene
+from scipy.spatial import cKDTree
 
 
 class FaceSignals(QObject):
-    """Thread-safe signals for Observer → GUI communication."""
     state_changed = pyqtSignal(str)
     caption_changed = pyqtSignal(str)
 
@@ -26,68 +29,57 @@ class FaceController(QMainWindow):
         "sleeping":  np.array([1.0, 0.9, 0.2, 1], dtype=np.float32),
     }
 
+    COLOR_VARIATION = {
+        "listening": 0.15,
+        "thinking":  0.20,
+        "error":     0.10,
+        "sleeping":  0.08,
+    }
+
+    PARTICLE_COUNTS = {
+        "listening": 400,
+        "thinking":  650,
+        "error":     400,
+        "sleeping":  150,
+    }
+
+    LINE_SETTINGS = {
+        "listening": (0.35, 0.25),
+        "thinking":  (0.4,  0.35),
+        "error":     (0.3,  0.4),
+        "sleeping":  (0.5,  0.1),
+    }
+
+    BREATH_SETTINGS = {
+        "listening": (0.008, 0.03),  # speed, strength
+        "thinking":  (0.015, 0.05),
+        "sleeping":  (0.004, 0.08),
+        "error":     (0.025, 0.04),
+    }
+
     BASE_SIZE = 3
     BASE_RADIUS = 1.0
 
     def __init__(self):
         super().__init__()
         self.setWindowTitle("J.A.R.V.I.S")
-        self.setMinimumSize(400, 550)
+        self.setObjectName("jarvis.assistant")
+        self.setMinimumSize(220, 350)
         self.setStyleSheet("""
-            QMainWindow, QWidget {
-                background-color: #0a0a0f;
-                color: #c8d8e8;
-            }
-            QPushButton {
-                background-color: #1a1a2e;
-                color: #c8d8e8;
-                border: 1px solid #2a2a4e;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: #2a2a4e;
-                border-color: #4a4a8e;
-            }
-            QPushButton:pressed {
-                background-color: #0a0a1e;
-            }
-            QPushButton#cancel_btn {
-                border-color: #8e2a2a;
-                color: #ff6b6b;
-            }
-            QPushButton#cancel_btn:hover {
-                background-color: #2e1a1a;
-                border-color: #ff4444;
-            }
-            QPushButton#mute_btn_active {
-                background-color: #2e1a1a;
-                border-color: #ff4444;
-                color: #ff6b6b;
-            }
-            QLineEdit {
-                background-color: #1a1a2e;
-                color: #c8d8e8;
-                border: 1px solid #2a2a4e;
-                border-radius: 6px;
-                padding: 8px 12px;
-                font-size: 13px;
-            }
-            QLineEdit:focus {
-                border-color: #4a6aae;
-            }
-            QLabel#caption_label {
-                color: #8a9ab8;
-                font-size: 12px;
-                padding: 4px 8px;
-                min-height: 40px;
-            }
-            QLabel#state_label {
-                color: #4a5a7a;
-                font-size: 11px;
-                padding: 2px 8px;
-            }
+            QMainWindow, QWidget { background-color: #0a0a0f; color: #c8d8e8; }
+            QPushButton { background-color: #1a1a2e; color: #c8d8e8; border: 1px solid #2a2a4e;
+                          border-radius: 6px; padding: 8px 16px; font-size: 13px; }
+            QPushButton:hover { background-color: #2a2a4e; border-color: #4a4a8e; }
+            QPushButton:pressed { background-color: #0a0a1e; }
+            QPushButton#cancel_btn { border-color: #8e2a2a; color: #ff6b6b; }
+            QPushButton#cancel_btn:hover { background-color: #2e1a1a; border-color: #ff4444; }
+            QPushButton#mute_btn_active { background-color: #2e1a1a; border-color: #ff4444;
+                                          color: #ff6b6b; }
+            QLineEdit { background-color: #1a1a2e; color: #c8d8e8; border: 1px solid #2a2a4e;
+                        border-radius: 6px; padding: 8px 12px; font-size: 13px; }
+            QLineEdit:focus { border-color: #4a6aae; }
+            QLabel#caption_label { color: #8a9ab8; font-size: 12px; padding: 4px 8px; min-height: 40px; }
+            QLabel#state_label { color: #4a5a7a; font-size: 11px; padding: 2px 8px; }
         """)
 
         # callbacks — set by Observer after init
@@ -96,8 +88,9 @@ class FaceController(QMainWindow):
         self.on_command = None
         self.muted = False
         self._positioned = False
+        self.debug = False
 
-        # signals for thread-safe GUI updates
+        # signals
         self.signals = FaceSignals()
         self.signals.state_changed.connect(self._apply_state)
         self.signals.caption_changed.connect(self._apply_caption)
@@ -107,49 +100,60 @@ class FaceController(QMainWindow):
         self.target_color = self.COLORS["listening"].copy()
         self.n_points = 400
         self.points = self._generate_points(self.n_points)
+        self.color_offsets = np.random.uniform(-0.1, 0.1, (self.n_points, 4))
+        self.color_offsets[:, 3] = 0
         self.base_radius = self.BASE_RADIUS
         self.current_radius = self.base_radius
         self.target_radius = self.base_radius
-        self.pulse_value = 0.0
-        self.pulse_dir = 1
-        self.z_wobble = 0.0
-        self.z_dir = 1
         self.current_state = "listening"
         self.state_queue = Queue()
 
-        # precompute rotation matrix
+        # breathing
+        self.breath_phase = 0.0
+        self.breath_speed, self.breath_strength = self.BREATH_SETTINGS["listening"]
+
+        # beam lines
+        self.beam_counter = 0
+
+        # precompute rotation
         angle = 0.002
         c, s = np.cos(angle), np.sin(angle)
         self.rot_mat = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
 
         self._build_ui()
         self._start_timer()
+        QTimer.singleShot(50, self._restore_position)
 
     def _build_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setSpacing(2)
 
-        # vispy canvas embedded in Qt
-        # window size — 30% smaller (was 400x550)
-        self.setMinimumSize(280, 385)
-
-        # vispy canvas — 30% smaller (was 376x320)
+        # vispy canvas
         self.canvas = scene.SceneCanvas(
-            keys='interactive', size=(256, 224),
+            keys='interactive', size=(200, 200),
             show=False, bgcolor='#0a0a0f'
         )
         self.view = self.canvas.central_widget.add_view()
-        self.view.camera = scene.cameras.TurntableCamera(fov=45, distance=4)
-        self.scatter = scene.visuals.Markers(parent=self.view.scene)
-        self.scatter.set_data(
-            self.points,
-            face_color=self.current_color,
-            size=self.BASE_SIZE
+        self.view.camera = scene.cameras.TurntableCamera(
+            fov=38, distance=3.5, azimuth=30, elevation=30
         )
-        layout.addWidget(self.canvas.native, stretch=4)
+
+        # particles
+        self.scatter = scene.visuals.Markers(parent=self.view.scene)
+        self.scatter.set_data(self.points, face_color=self.current_color, size=self.BASE_SIZE)
+
+        # beam lines
+        self.beam_visual = scene.visuals.Line(
+            parent=self.view.scene,
+            method='gl',
+            connect='segments',
+            color=self.current_color
+        )
+
+        layout.addWidget(self.canvas.native, stretch=5)
 
         # state label
         self.state_label = QLabel("● listening")
@@ -166,8 +170,9 @@ class FaceController(QMainWindow):
 
         # text input
         input_layout = QHBoxLayout()
+        input_layout.setSpacing(2)
         self.text_input = QLineEdit()
-        self.text_input.setPlaceholderText("Type a command...")
+        self.text_input.setPlaceholderText("Type a command")
         self.text_input.returnPressed.connect(self._handle_text_command)
         input_layout.addWidget(self.text_input)
 
@@ -177,9 +182,9 @@ class FaceController(QMainWindow):
         input_layout.addWidget(send_btn)
         layout.addLayout(input_layout)
 
-        # cancel and mute buttons
+        # buttons
         btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(8)
+        btn_layout.setSpacing(2)
 
         self.cancel_btn = QPushButton("⬛  Cancel")
         self.cancel_btn.setObjectName("cancel_btn")
@@ -198,39 +203,28 @@ class FaceController(QMainWindow):
         self.timer.timeout.connect(self._update)
         self.timer.start(16)  # ~60fps
 
-    def showEvent(self, event):
-        """Called automatically by Qt when window is shown."""
-        super().showEvent(event)
-        if not self._positioned:
-            self._positioned = True
-            self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
-            self.show()
-            screen = QDesktopWidget().availableGeometry()
-            self.move(
-                screen.right() - self.frameGeometry().width() - 20,
-                screen.bottom() - self.frameGeometry().height() - 20
-            )
+        self.position_timer = QTimer()
+        self.position_timer.timeout.connect(self._save_position)
+        self.position_timer.start(5000)
 
     def _generate_points(self, n):
         theta = np.random.uniform(0, 2 * np.pi, n)
         phi = np.random.uniform(0, np.pi, n)
-        r = np.random.uniform(0.5, 1.0, n)
+        r = np.random.uniform(0.2, 1.0, n)
         x = r * np.sin(phi) * np.cos(theta)
         y = r * np.sin(phi) * np.sin(theta)
         z = r * np.cos(phi)
         return np.c_[x, y, z]
 
-    # ── public API (called from Observer thread) ──────────────────────────
+    # ── public API ────────────────────────────────────────────────────────
 
     def set_state(self, state: str):
-        """Thread-safe state change."""
         self.signals.state_changed.emit(state)
 
     def set_caption(self, text: str):
-        """Thread-safe caption update."""
         self.signals.caption_changed.emit(text)
 
-    # ── Qt slot handlers (always on main thread) ──────────────────────────
+    # ── Qt slots ──────────────────────────────────────────────────────────
 
     def _apply_state(self, state: str):
         if state not in self.COLORS:
@@ -282,11 +276,13 @@ class FaceController(QMainWindow):
         text = self.text_input.text().strip()
         if text and self.on_command:
             self.text_input.clear()
+            self.set_state("thinking")
             self.on_command(text)
 
-    # ── particle animation (called by QTimer on main thread) ──────────────
+    # ── animation ─────────────────────────────────────────────────────────
 
     def _update(self):
+        # process state changes
         while not self.state_queue.empty():
             state = self.state_queue.get()
             self.target_color = self.COLORS[state].copy()
@@ -297,37 +293,119 @@ class FaceController(QMainWindow):
                 "error":     self.base_radius * 1.1,
                 "sleeping":  self.base_radius * 0.5,
             }.get(state, self.base_radius)
-            self.pulse_value = 0.0
-            self.pulse_dir = 1
-            self.z_wobble = 0.0
-            self.z_dir = 1
 
+            # update breath settings for new state
+            self.breath_speed, self.breath_strength = self.BREATH_SETTINGS.get(
+                state, (0.008, 0.03)
+            )
+
+            # update particle count
+            target_count = self.PARTICLE_COUNTS.get(state, 400)
+            if target_count != self.n_points:
+                self.n_points = target_count
+                self.points = self._generate_points(self.n_points)
+                self.color_offsets = np.random.uniform(-0.1, 0.1, (self.n_points, 4))
+                self.color_offsets[:, 3] = 0
+
+        # smooth color transition
         self.current_color += (self.target_color - self.current_color) * 0.05
 
-        params = {
-            "thinking":  (0.001,      self.target_radius * 0.03, 0.001,   0.005),
-            "listening": (0.0000005,  self.target_radius * 0.02, 0.00005, 0.0003),
-            "error":     (0.000005,   self.target_radius * 0.03, 0.005,   0.05),
-            "sleeping":  (0.0005,     self.target_radius * 0.05, 0.0003,  0.002),
-        }.get(self.current_state, (0, 0, 0, 0))
+        # smooth radius toward target
+        self.current_radius += (self.target_radius - self.current_radius) * 0.05
 
-        pulse_speed, pulse_strength, z_speed, z_strength = params
+        # breathing — sin wave for perfectly symmetric in/out
+        self.breath_phase += self.breath_speed
+        if self.breath_phase > 2 * math.pi:
+            self.breath_phase -= 2 * math.pi
+        breath = math.sin(self.breath_phase)
+        display_radius = self.current_radius + breath * self.breath_strength
 
-        self.pulse_value += self.pulse_dir * pulse_speed
-        if abs(self.pulse_value) > pulse_strength:
-            self.pulse_dir *= -1
-
-        self.current_radius += (
-            self.target_radius + self.pulse_value - self.current_radius
-        ) * 0.3
-
-        self.z_wobble += self.z_dir * z_speed
-        if abs(self.z_wobble) > z_strength:
-            self.z_dir *= -1
-
+        # rotate and scale
         self.points = self.points @ self.rot_mat.T
-        scaled = self.points * self.current_radius
-        scaled[:, 2] += self.z_wobble
+        scaled = self.points * display_radius
 
-        self.scatter.set_data(scaled, face_color=self.current_color, size=self.BASE_SIZE)
+        # size variation by distance from center
+        dist = np.linalg.norm(scaled, axis=1)
+        sizes = self.BASE_SIZE * (1.0 / (0.5 + dist))
+
+        # per-particle color variation
+        variation = self.COLOR_VARIATION.get(self.current_state, 0.1)
+        per_particle_colors = np.clip(
+            self.current_color + self.color_offsets * variation, 0, 1
+        )
+
+        self.scatter.set_data(scaled, face_color=per_particle_colors, size=sizes)
+
+        # update beam lines every 5 frames
+        self.beam_counter += 1
+        if self.beam_counter % 5 == 0:
+            result = self._compute_beams(scaled)
+            if result is not None:
+                verts, colors = result
+                self.beam_visual.set_data(
+                    pos=verts, color=colors, width=1.2, connect='segments'
+                )
+
         self.canvas.update()
+
+    def _compute_beams(self, points):
+        max_dist, max_alpha = self.LINE_SETTINGS.get(self.current_state, (0.4, 0.25))
+        subset = points[:200]
+        tree = cKDTree(subset)
+        pairs = list(tree.query_pairs(max_dist))
+        if not pairs:
+            return None
+
+        np.random.shuffle(pairs)
+        selected = pairs[:len(pairs) // 5]
+
+        verts = []
+        colors = []
+        base = self.current_color[:3]
+
+        for i, j in selected:
+            verts.extend([subset[i], subset[j]])
+            dist = np.linalg.norm(subset[i] - subset[j])
+            alpha = (1.0 - dist / max_dist) * max_alpha
+            colors.extend([[*base, alpha], [*base, alpha]])
+
+        return np.array(verts, dtype=np.float32), np.array(colors, dtype=np.float32)
+
+    # ── window management ─────────────────────────────────────────────────
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if not self._positioned:
+            self._positioned = True
+            self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+            self.show()
+            screen = QDesktopWidget().availableGeometry()
+            self.move(
+                screen.right() - self.frameGeometry().width() - 20,
+                screen.bottom() - self.frameGeometry().height() - 20
+            )
+
+    def _save_position(self):
+        if IS_WAYLAND:
+            return
+        try:
+            pos = self.pos()
+            if pos.x() > 0 or pos.y() > 0:
+                with open(WINDOW_POS_FILE, "w") as f:
+                    f.write(f"{pos.x()},{pos.y()}")
+        except Exception:
+            pass
+
+    def closeEvent(self, event):
+        self._save_position()
+        event.accept()
+
+    def _restore_position(self):
+        if IS_WAYLAND:
+            return
+        try:
+            with open(WINDOW_POS_FILE) as f:
+                x, y = map(int, f.read().split(","))
+                self.move(x, y)
+        except Exception:
+            pass
