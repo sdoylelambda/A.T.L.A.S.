@@ -22,11 +22,11 @@ llm:
     classifier:
       name: phi3:mini
       # set for 3 sentence max responses - double if cut off
-      num_ctx: 1024
+      num_ctx: 2048
       # deterministic - no creativity needed, just classify
       temperature: 0.0
       # hard output cap - 3 sentence max - increase for longer responses from phi3 (basic AI)
-      max_tokens: 150
+      max_tokens: 300
 
     orchestrator:
       name: mistral

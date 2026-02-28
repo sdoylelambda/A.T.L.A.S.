@@ -113,28 +113,29 @@ class Brain:
         Returns a result dict if it can handle it, None if it needs Mistral.
         """
         system = textwrap.dedent("""
-            You are Jarvis, a witty British AI assistant from Iron Man.
-            Always say 'sir'. One sentence max. Two sentences only for jokes.
+            You are Jarvis, a witty British AI assistant.
+            Always say 'sir'. 
+            Keep responses as short as possible.
 
-            ESCALATE for anything computer-related: files, code, apps, web, scripts, system.
+            ESCALATE for anything code or creation related: files, languages, apps, web, scripts, system.
             ESCALATE if unsure. Never write code. Never pretend to do computer tasks.
-            ESCALATE if I'm sorry or I can't
+            ESCALATE if I'm sorry or I can't""").strip()
 
-            Examples:
-            User: create a file
-            Jarvis: ESCALATE
-            User: write a python class
-            Jarvis: ESCALATE
-            User: open browser
-            Jarvis: ESCALATE
-            User: what is the capital of France
-            Jarvis: Paris, sir.
-            User: tell me a joke
-            Jarvis: Why don't eggs tell jokes? They'd crack each other up, sir.
-            User: how are you
-            Jarvis: Fully operational, sir.
-            User: what is 2 plus 2
-            Jarvis: 4, sir.""").strip()
+            # Examples:
+            # User: create a file
+            # Jarvis: ESCALATE
+            # User: write a python class
+            # Jarvis: ESCALATE
+            # User: open browser
+            # Jarvis: ESCALATE
+            # User: what is the capital of France
+            # Jarvis: Paris, sir.
+            # User: tell me a joke
+            # Jarvis: Why don't eggs tell jokes? They'd crack each other up, sir.
+            # User: how are you
+            # Jarvis: Fully operational, sir.
+            # User: what is 2 plus 2
+            # Jarvis: 4, sir.""").strip()
         # Uses too many tokens
         # system = textwrap.dedent("""
         #     You are Jarvis, an AI assistant with dry British wit inspired by Iron Man.
@@ -191,7 +192,7 @@ class Brain:
         if "ESCALATE" in result:
             return None
 
-        if len(result.split()) > 60:
+        if len(result.split()) > 120:
             print("[Brain] phi3 response too long, forcing ESCALATE")
             return None
 
@@ -200,10 +201,21 @@ class Brain:
                 "def " in result or
                 "class " in result or
                 "import " in result or
-                "<!doctype" in result.lower() or  # HTML document
-                "<html" in result.lower() or  # HTML document
-                "<style>" in result.lower() or  # standalone CSS block
-                "<body>" in result.lower()):  # HTML document
+                "txt " in result or
+                "file " in result or
+                "py " in result or
+                "js " in result or
+                "ts " in result or
+                "md " in result or
+                "folder " in result or
+                "html " in result or
+                "css " in result or
+                "yaml " in result):
+                # or .+ any letters
+                # "<!doctype" in result.lower() or  # HTML document
+                # "<html" in result.lower() or  # HTML document
+                # "<style>" in result.lower() or  # standalone CSS block
+                # "<body>" in result.lower()):  # HTML document
             print("[Brain] phi3 returned code, forcing ESCALATE")
             return None
 
