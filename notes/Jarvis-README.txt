@@ -59,3 +59,32 @@ Project runs on secondary computer. (Reduces load on primary computer, periphals
     [] - what do i have today? add event
     [] - timer --- remind me this 30 minutes to call jon
 [] - test performance under load/multitasking
+[] -  ui button to proceed - build it
+[] - for 'bike week schedule' Jarvis should say feb 27-march 7
+
+
+
+Claude joint plan
+Claude / Gemini API routing — infrastructure built, just needs the google-genai fix and end-to-end testing
+Save window position — remember where user dragged the GUI, restore on next launch
+
+Planned Features
+
+GUI update — display thought process, show what Brain is doing in real time
+Self-expanding keyword layer — Jarvis learns frequent commands and routes them instantly next time, skipping Brain entirely
+RAG over local files — Jarvis reads your own documents and answers questions about them
+Screen / vision support — LLaVA model lets Jarvis see your screen
+Android client over SSH — control Jarvis from your phone
+Persistent memory — remembers preferences and context across sessions
+Push-to-talk mode — keyboard shortcut triggers listening, bypasses mic threshold
+
+Known Issues Worth Fixing
+
+Cancel mid-generation — can only cancel between steps, not while DeepSeek is writing
+Double execution — occasional write_code + generate_code both firing
+Whisper mishearing — upgrading to medium model would help significantly
+
+Stretch Goals
+
+React/Flutter GUI — full web-based interface with richer animations
+Voice training — tune STT to your specific voice

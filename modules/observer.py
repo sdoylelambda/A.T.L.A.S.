@@ -17,12 +17,13 @@ class Observer:
         self.config = config
         self.paused = False
         self.cancelled = False
+        self._processing = False
         self.debug = True
         self._last_spoken = ""
         self._last_spoken_time = 0
 
         self.brain = Brain(config)
-        self.ears = Ears()
+        self.ears = Ears()  # pass config
         self.mouth = TTSModule(use_mock=config["audio"].get("use_mock", False))
         self.browser_controller = BrowserController()
         self.launcher = AppLauncher(window_controller, self.browser_controller)
@@ -51,7 +52,7 @@ class Observer:
             try:
                 if self.paused:
                     self.face.set_state("sleeping")
-                else:
+                elif not self._processing:
                     self.face.set_state("listening")
 
                 # 🎧 Listen
@@ -172,7 +173,8 @@ class Observer:
                 if self.debug:
                     print(f"[Timing] TTS: {time.time() - t1:.2f}s")
 
-                self.face.set_state("listening")
+                if not self._processing:
+                    self.face.set_state("listening")
 
             except Exception as e:
                 print(f"[Observer Error]: {e}")
@@ -182,6 +184,7 @@ class Observer:
 
     async def handle_brain_command(self, command: str):
         """Main entry point for brain commands."""
+        self._processing = True
         self.cancelled = False
         cancel_task = asyncio.create_task(self._listen_for_cancel())
         notice_task = asyncio.create_task(self._thinking_notice())
@@ -204,7 +207,7 @@ class Observer:
 
             except PlanExecutionError as e:
                 notice_task.cancel()
-                await self._handle_plan_error(e, plan)
+                await self._handle_plan_error(e, plan)  # fix this or leave it/remove it?
 
             except ModelUnavailable as e:
                 notice_task.cancel()
@@ -218,6 +221,9 @@ class Observer:
                     await self.say("I ran into a problem with that one, sir.")
 
         finally:
+            self._processing = False
+            cancel_task.cancel()
+            notice_task.cancel()
             for task in [cancel_task, notice_task]:
                 task.cancel()
                 try:

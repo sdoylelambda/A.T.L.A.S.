@@ -256,3 +256,30 @@ made it 2 sentences max
 
 
 should we make prompt shorter?
+
+
+
+
+text not working for textfield search
+
+WARNING: Traceback (most recent call last):
+  File "/home/zero/dev/J.A.R.V.I.S/modules/face.py", line 285, in _handle_text_command
+    self.on_command(text)
+  File "/home/zero/dev/J.A.R.V.I.S/main.py", line 19, in <lambda>
+    face.on_command = lambda text: asyncio.create_task(
+                                   ^^^^^^^^^^^^^^^^^^^^
+  File "/opt/python/3.11.14/lib/python3.11/asyncio/tasks.py", line 381, in create_task
+    loop = events.get_running_loop()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: no running event loop
+
+
+
+
+i think this was already part of the plan but i want to discuss a little.
+
+i want Jarvis to be able to remember conversations. so maybe create a md file for each conversation/project so he can remember context and learn/grow.
+
+it seems like i had Jarvis do a web search for time zones that it then read me the answer. how to have him always read the answer, not just pull up a browser that has the answer?
+
+Jarvis makes responses code always. if no code or file creation is in the request prompt, i want just an answer, not a file with the answer.

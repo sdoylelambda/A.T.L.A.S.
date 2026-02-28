@@ -1,5 +1,7 @@
 import numpy as np
 from queue import Queue
+import os
+WINDOW_POS_FILE = os.path.join(os.path.dirname(__file__), "..", ".window_pos")
 
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -32,6 +34,7 @@ class FaceController(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("J.A.R.V.I.S")
+        self.setObjectName("jarvis.assistant")
         self.setMinimumSize(400, 550)
         self.setStyleSheet("""
             QMainWindow, QWidget {
@@ -124,6 +127,8 @@ class FaceController(QMainWindow):
 
         self._build_ui()
         self._start_timer()
+        QTimer.singleShot(50, self._restore_position)
+        self.debug = False
 
     def _build_ui(self):
         central = QWidget()
@@ -132,11 +137,8 @@ class FaceController(QMainWindow):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
 
-        # vispy canvas embedded in Qt
-        # window size — 30% smaller (was 400x550)
+        # window size
         self.setMinimumSize(280, 385)
-
-        # vispy canvas — 30% smaller (was 376x320)
         self.canvas = scene.SceneCanvas(
             keys='interactive', size=(256, 224),
             show=False, bgcolor='#0a0a0f'
@@ -197,6 +199,10 @@ class FaceController(QMainWindow):
         self.timer = QTimer()
         self.timer.timeout.connect(self._update)
         self.timer.start(16)  # ~60fps
+
+        self.position_timer = QTimer()
+        self.position_timer.timeout.connect(self._save_position)
+        self.position_timer.start(5000)  # save position every 5 seconds
 
     def showEvent(self, event):
         """Called automatically by Qt when window is shown."""
@@ -282,6 +288,7 @@ class FaceController(QMainWindow):
         text = self.text_input.text().strip()
         if text and self.on_command:
             self.text_input.clear()
+            self.set_state("thinking")
             self.on_command(text)
 
     # ── particle animation (called by QTimer on main thread) ──────────────
@@ -331,3 +338,32 @@ class FaceController(QMainWindow):
 
         self.scatter.set_data(scaled, face_color=self.current_color, size=self.BASE_SIZE)
         self.canvas.update()
+
+    # on close, save face window location to a small file to have it load in the same place
+    def _save_position(self):
+        try:
+            pos = self.pos()
+            if pos.x() > 0 or pos.y() > 0:
+                with open(WINDOW_POS_FILE, "w") as f:
+                    f.write(f"{pos.x()},{pos.y()}")
+                if self.debug:
+                    print(f"[GUI] Position saved: {pos.x()},{pos.y()} to {WINDOW_POS_FILE}")
+        except Exception as e:
+            print(f"[GUI] Position save failed: {e}")
+
+    def closeEvent(self, event):
+        pos = self.pos()
+        with open(".window_pos", "w") as f:
+            f.write(f"{pos.x()},{pos.y()}")
+        event.accept()
+
+    # on start, restore if file exists - remembers last place window was located on screen
+    def _restore_position(self):
+        try:
+            with open(WINDOW_POS_FILE) as f:
+                x, y = map(int, f.read().split(","))
+                self.move(x, y)
+                if self.debug:
+                    print(f"[GUI] Position restored: {x},{y}")
+        except Exception as e:
+            print(f"[GUI] Position restore failed: {e}")

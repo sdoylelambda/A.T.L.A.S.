@@ -19,13 +19,6 @@ llm:
   backend: "local"
 
   models:
-    orchestrator:
-      name: mistral
-      # set for shorter commands - double if cut off
-      num_ctx: 8092
-      # low-medium - consistent JSON output, handles varied phrasing
-      temperature: 0.2
-      max_tokens: 500
     classifier:
       name: phi3:mini
       # set for 3 sentence max responses - double if cut off
@@ -34,6 +27,15 @@ llm:
       temperature: 0.0
       # hard output cap - 3 sentence max - increase for longer responses from phi3 (basic AI)
       max_tokens: 150
+
+    orchestrator:
+      name: mistral
+      # set for shorter commands - double if cut off
+      num_ctx: 8092
+      # low-medium - consistent JSON output, handles varied phrasing
+      temperature: 0.2
+      max_tokens: 500
+
     code:
       name: deepseek-coder:6.7b
       # longer context for full code output - bump to 8192 if truncating complex outputs
@@ -86,6 +88,8 @@ transcription:
     engine: "coqui"
     voice: "default"
 
+    # update
+
 # ---- Execution permissions ----
 permissions:
   allow_file_write: true
@@ -113,6 +117,8 @@ stt:
   # Length of message that can be heard in seconds
   duration: 30
 
+  # add whisper
+
 system:
-  cpu_threads: 1
+  cpu_threads: 6
   use_gpu: false
