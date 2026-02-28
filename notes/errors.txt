@@ -275,6 +275,16 @@ RuntimeError: no running event loop
 
 
 
+[Heard]: briefly explain what bluetooth does.
+[Observer] Similarity: 0.12 last='hello sir, what can i do for you.'
+[Observer] Pausing ears
+[TTS] One moment please, sir.
+[Observer] Ears resumed
+[Brain] phi3 raw: Bluetooth technology enables short-range wireless communication between devices like smartphones, computers, and peripherals using radio waves in the ISM band. It allows for data exchange without cabl
+[Brain] phi3 response too long, forcing ESCALATE
+
+
+
 
 i think this was already part of the plan but i want to discuss a little.
 

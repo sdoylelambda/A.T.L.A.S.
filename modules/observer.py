@@ -84,7 +84,7 @@ class Observer:
                     # cancel/control
                     "yes", "no", "cancel", "stop", "pause",
                     "never mind", "forget it", "escape", "deselect",
-                    "first", "second", "third", "forth", "fifth",
+                    "first", "second", "third", "forth", "fifth", "break"
                     # browser navigation
                     "zoom in", "zoom out", "zoom reset", "go down", "go up", "go back", "go forward",
                     "new tab", "close tab", "refresh", "reload", "new window"
@@ -139,7 +139,7 @@ class Observer:
                     continue
 
                 # 😴 Pause command
-                if any(phrase in text for phrase in ["take a break", "pause", "stop listening", "go to sleep"]):
+                if any(phrase in text for phrase in ["take a break", "break", "stop listening", "go to sleep"]):
                     self.paused = True
                     self.face.set_state("sleeping")
                     t1 = time.time()
