@@ -64,7 +64,8 @@ Project runs on secondary computer. (Reduces load on primary computer, periphals
 [] - say hello -> i'm jarvis...
 [] - say what can you do -> i'm jarvis, here to...
 [] - try different stt model sizes - see time delay? - maybe large is fine?
-
+[] - 1st word or 2 cut off - fix
+[] - max recording length?
 
 
 Claude joint plan

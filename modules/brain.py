@@ -119,7 +119,7 @@ class Brain:
 
             ESCALATE for anything code or creation related: files, languages, apps, web, scripts, system.
             ESCALATE if unsure. Never write code. Never pretend to do computer tasks.
-            ESCALATE if I'm sorry or I can't
+            ESCALATE if you say I'm sorry or I can't
 
             # Examples:
             User: create a file
