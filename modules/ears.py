@@ -141,7 +141,7 @@ class Ears:
                   f"start={int(self.start_threshold)} "
                   f"stop={int(self.stop_threshold)}")
 
-    async def auto_calibrate(self, interval: int = 20):
+    async def auto_calibrate(self, interval: int = 30):
         """Recalibrate noise floor every interval seconds, only during silence."""
         while True:
             await asyncio.sleep(interval)

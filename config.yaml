@@ -109,13 +109,13 @@ dev:
   auto_approve: false
 
 stt:
-  # faster_whisper | whisper both used depending on message length - do not change
-  backend: faster_whisper
-  # tiny | base | small | medium
-  model: small
   language: en
   # Length of message that can be heard in seconds
   duration: 30
+   # tiny | base | small | medium | large
+  whisper_model: small
+  # tiny | base | small | medium | large
+  fw_model: small
 
   # add whisper
 

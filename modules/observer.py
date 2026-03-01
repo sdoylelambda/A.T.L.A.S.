@@ -29,8 +29,8 @@ class Observer:
         self.launcher = AppLauncher(window_controller, self.browser_controller)
         self.executor = ToolExecutor(self.launcher, self.browser_controller, self.brain)
         self.stt = HybridSTT(
-            whisper_model="small",
-            fw_model="small",
+            whisper_model=config["stt"].get("whisper_model", "small"),
+            fw_model=config["stt"].get("fw_model", "small"),
             use_gpu=config["system"].get("use_gpu", False),
         )
 
@@ -44,7 +44,7 @@ class Observer:
 
         # now thresholds are set — safe to start
         print("[Observer] Listening and responding...")
-        asyncio.create_task(self.ears.auto_calibrate(interval=20))
+        asyncio.create_task(self.ears.auto_calibrate(interval=30))
         await self.say("Hello sir, what can I do for you.")
         self.face.set_state("listening")
 

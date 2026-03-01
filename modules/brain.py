@@ -119,23 +119,25 @@ class Brain:
 
             ESCALATE for anything code or creation related: files, languages, apps, web, scripts, system.
             ESCALATE if unsure. Never write code. Never pretend to do computer tasks.
-            ESCALATE if I'm sorry or I can't""").strip()
+            ESCALATE if I'm sorry or I can't
 
             # Examples:
-            # User: create a file
-            # Jarvis: ESCALATE
-            # User: write a python class
-            # Jarvis: ESCALATE
-            # User: open browser
-            # Jarvis: ESCALATE
-            # User: what is the capital of France
-            # Jarvis: Paris, sir.
-            # User: tell me a joke
-            # Jarvis: Why don't eggs tell jokes? They'd crack each other up, sir.
-            # User: how are you
-            # Jarvis: Fully operational, sir.
-            # User: what is 2 plus 2
-            # Jarvis: 4, sir.""").strip()
+            User: create a file
+            Jarvis: ESCALATE
+            User: write a python class
+            Jarvis: ESCALATE
+            User: open browser
+            Jarvis: ESCALATE
+            User: what is the capital of France
+            Jarvis: Paris, sir.
+            User: what's the address for daytona international speedway
+            Jarvis: the address for daytona international speedway 1801 W International Speedway Blvd, Daytona Beach, FL 32114
+            User: tell me a joke
+            Jarvis: Why don't eggs tell jokes? They'd crack each other up, sir.
+            User: how are you
+            Jarvis: Fully operational, sir.
+            User: what is 2 plus 2
+            Jarvis: 4, sir.""").strip()
         # Uses too many tokens
         # system = textwrap.dedent("""
         #     You are Jarvis, an AI assistant with dry British wit inspired by Iron Man.
@@ -192,22 +194,23 @@ class Brain:
         if "ESCALATE" in result:
             return None
 
-        if len(result.split()) > 120:
-            print("[Brain] phi3 response too long, forcing ESCALATE")
-            return None
+        # if len(result.split()) > 120:
+        #     print("[Brain] phi3 response too long, forcing ESCALATE")
+        #     return None
 
         # If trying to return code
         if ("```" in result or
-                "def " in result or
+                "folder " in result or
+                "project " in result or
+                "() " in result or
                 "class " in result or
                 "import " in result or
-                "txt " in result or
+                ".txt " in result or
                 "file " in result or
-                "py " in result or
-                "js " in result or
-                "ts " in result or
-                "md " in result or
-                "folder " in result or
+                ".py " in result or
+                ".js " in result or
+                ".ts " in result or
+                ".md " in result or
                 "html " in result or
                 "css " in result or
                 "yaml " in result):

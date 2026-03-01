@@ -9,13 +9,13 @@ warnings.filterwarnings("ignore", category=UserWarning)  # ignore GPU not in use
 SHORT_THRESHOLD_SECONDS = 10  # use whisper for >10s, faster-whisper for shorter
 
 class HybridSTT:
-    def __init__(self, whisper_model="medium", fw_model="small", use_gpu=False):
+    def __init__(self, whisper_model="small", fw_model="small", use_gpu=False):
         device = "cuda" if use_gpu else "cpu"
 
-        print("[STT] Loading Whisper...")
+        print(f"[STT] Loading Whisper model {whisper_model} model...")
         self.whisper = whisper.load_model(whisper_model, device=device)
 
-        print("[STT] Loading Faster-Whisper...")
+        print(f"[STT] Loading Faster-Whisper {fw_model} model...")
         self.faster = WhisperModel(
             fw_model,
             device=device,
