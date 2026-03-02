@@ -125,16 +125,32 @@ All core functionality runs **completely locally** on your machine. No data leav
 - [ ] Set `audio.use_mock: false` for real microphone
 - [ ] Set `system.use_gpu: true` if you have a compatible NVIDIA GPU (sm_70+)
 - [ ] Add API keys if using cloud models (optional)
-  ```yaml
-  api_keys:
-    anthropic: "your-key-here"
-    google: "your-key-here"
-  ```
 
 ### API Keys (Optional)
 - [ ] Anthropic (Claude) — https://console.anthropic.com
 - [ ] Google (Gemini) — https://console.cloud.google.com
 - [ ] Set `api_models.claude.enabled: true` and/or `api_models.gemini.enabled: true` in config to activate
+### Gemini Setup
+```bash
+# key is stored securely in OS keyring on first use — never touches disk
+# just run Jarvis and it will prompt you automatically when first using api
+
+python main.py
+```
+
+Or store it manually in advance:
+```python
+from modules.api_key_manager import get_api_key
+get_api_key("gemini")  # prompts once, stores in keyring forever
+```
+```yaml
+# config.yaml
+api_models:
+  gemini:
+    enabled: true
+    model: gemini-2.5-flash  # free tier
+    ask_permission: true     # asks before every API call
+```
 
 ### Workspace
 - [ ] `workspace/` directory is created automatically on first run

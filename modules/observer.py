@@ -180,6 +180,7 @@ class Observer:
             except Exception as e:
                 print(f"[Observer Error]: {e}")
                 self.face.set_state("error")
+                await asyncio.sleep(2)  # show error face for 2 seconds before going back to listening
 
             await asyncio.sleep(0.01)
 
@@ -346,8 +347,14 @@ class Observer:
         response = self.stt.transcribe(audio_bytes, duration).lower().strip() if audio_bytes else ""
 
         if any(w in response for w in ["yes", "yeah", "yep", "do it", "send", "sure"]):
-            plan = self.brain.process_with_permission(command, e.model_key)
-            await self.say(plan.get("summary", "Done, sir."))
+            # temporarily disable permission check
+            original = self.brain.api_models[e.model_key].get("ask_permission")
+            self.brain.api_models[e.model_key]["ask_permission"] = False
+            try:
+                response = self.brain.query(command, model_key=e.model_key)
+                await self.say(response, next_state="listening")
+            finally:
+                self.brain.api_models[e.model_key]["ask_permission"] = original
         else:
             await self.say("Cancelled. Handling locally instead, sir.")
             await self._run_local_plan(command)

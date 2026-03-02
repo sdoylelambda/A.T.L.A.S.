@@ -85,10 +85,10 @@ file with the answer.
 
 
 ### Next Steps
-[] - GUI update
+[x] - GUI update
     [] - ui button to proceed - build it
-    [] - speaking face color
-    [] - display thought process
+    [x] - speaking face color
+    [x] - display thought process
 [] - Remember Conversations
 [] - Adapt
 [] - Move files from / that aren't needed there

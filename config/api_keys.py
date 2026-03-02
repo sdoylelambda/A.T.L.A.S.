@@ -4,6 +4,8 @@ import platform
 
 SERVICE_NAME = "J.A.R.V.I.S"
 
+# Next steps: have these display in the GUI. Implement reset_api_key, delete_api_key and list_stored_keys.
+
 
 def get_api_key(provider: str) -> str:
     """

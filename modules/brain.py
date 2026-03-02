@@ -1,12 +1,14 @@
-import yaml
-import ollama
-import anthropic
-from anthropic.types import MessageParam
-from google import genai
 import faiss
 import json
-from custom_exceptions import PermissionRequired, ModelUnavailable, PlanExecutionError
+import ollama
+import anthropic
 import textwrap
+
+from config.api_keys import set_api_key, get_api_key, delete_api_key, list_stored_keys
+from anthropic.types import MessageParam
+from google import genai
+from custom_exceptions import PermissionRequired, ModelUnavailable, PlanExecutionError
+
 
 
 class Brain:
@@ -69,7 +71,8 @@ class Brain:
                 raise ModelUnavailable("gemini")
             if cfg.get("ask_permission", True):
                 raise PermissionRequired("gemini", prompt)
-            client = genai.Client()
+            gemini_api_key = get_api_key("gemini")
+            client = genai.Client(api_key=gemini_api_key)
             response = client.models.generate_content(
                 model=cfg["model"],
                 contents=prompt
@@ -81,29 +84,34 @@ class Brain:
 
     # ─── permission bypass ────────────────────────────────────────────────
 
-    def process_with_permission(self, command: str, model_key: str) -> dict:
-        """Called after user grants permission — skips ask_permission check."""
-        cfg = self.api_models.get(model_key, {})
-        if not cfg.get("enabled", False):
-            return {"summary": f"{model_key} API is disabled in config.", "steps": []}
+    # handled by query
 
-        # temporarily bypass permission check by calling API directly
-        if model_key == "claude":
-            client = anthropic.Anthropic()
-            message = client.messages.create(
-                model=cfg["model"],
-                max_tokens=cfg.get("max_tokens", 1000),
-                system="You are Jarvis, a helpful AI assistant.",
-                messages=[MessageParam(role="user", content=command)]
-            )
-            return {"summary": message.content[0].text, "steps": []}
-
-        elif model_key == "gemini":
-            model = genai.GenerativeModel(cfg["model"])
-            response = model.generate_content(command)
-            return {"summary": response.text, "steps": []}
-
-        return {"summary": "Unknown API model.", "steps": []}
+    # def process_with_permission(self, command: str, model_key: str) -> dict:
+    #     """Called after user grants permission — skips ask_permission check."""
+    #     cfg = self.api_models.get(model_key, {})
+    #     if not cfg.get("enabled", False):
+    #         return {"summary": f"{model_key} API is disabled in config.", "steps": []}
+    #
+    #     # temporarily bypass permission check by calling API directly
+    #     if model_key == "claude":
+    #         client = anthropic.Anthropic()
+    #         message = client.messages.create(
+    #             model=cfg["model"],
+    #             max_tokens=cfg.get("max_tokens", 1000),
+    #             system="You are Jarvis, a helpful AI assistant.",
+    #             messages=[MessageParam(role="user", content=command)]
+    #         )
+    #         return {"summary": message.content[0].text, "steps": []}
+    #
+    #     elif model_key == "gemini":
+    #         mclient = genai.Client(api_key=gemini_api_key)
+    #         response = client.models.generate_content(
+    #             model=cfg["model"],
+    #             contents=prompt
+    #         )
+    #         return response.text
+    #
+    #     return {"summary": "Unknown API model.", "steps": []}
 
     # ─── intent classification ────────────────────────────────────────────
 

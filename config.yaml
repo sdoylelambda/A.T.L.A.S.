@@ -50,8 +50,9 @@ llm:
       max_tokens: 1000
       ask_permission: true
     gemini:
-      enabled: false
-      model: gemini-pro
+      enabled: true
+      # models/gemini-2.5-flash-lite - Smaller
+      model: gemini-2.5-flash
       ask_permission: true
 
   # legacy/unused for now
