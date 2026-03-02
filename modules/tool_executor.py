@@ -33,14 +33,15 @@ class ToolExecutor:
 
     # ─── main entry point ─────────────────────────────────────────────────
 
-    async def execute_plan(self, plan: dict, cancelled=None) -> list[str]:
+    async def execute_plan(self, plan: dict, cancelled=None, on_step=None) -> list[str]:
         """
         Execute all steps in a plan.
         Returns list of result strings for Jarvis to speak.
         """
         results = []
-        for step in plan.get("steps", []):
-            # check cancel between each step
+        steps = plan.get("steps", [])
+        total = len(steps)
+        for i, step in enumerate(steps):
             if cancelled and cancelled():
                 print("[ToolExecutor] Cancelled between steps.")
                 break
@@ -48,6 +49,10 @@ class ToolExecutor:
             action = step.get("action")
             params = step.get("params", {})
             tool = self.tools.get(action)
+
+            # report progress before executing
+            if on_step:
+                on_step(i + 1, total, action)  # ← add
 
             if not tool:
                 print(f"[ToolExecutor] Unknown action: {action}")

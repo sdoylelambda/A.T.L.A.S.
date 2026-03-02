@@ -24,37 +24,42 @@ class FaceSignals(QObject):
 class FaceController(QMainWindow):
     COLORS = {
         "listening": np.array([0.2, 0.4, 1.0, 1], dtype=np.float32),
-        "thinking":  np.array([0.2, 1.0, 0.4, 1], dtype=np.float32),
-        "error":     np.array([1.0, 0.2, 0.2, 1], dtype=np.float32),
-        "sleeping":  np.array([1.0, 0.9, 0.2, 1], dtype=np.float32),
-    }
-
-    COLOR_VARIATION = {
-        "listening": 0.15,
-        "thinking":  0.20,
-        "error":     0.10,
-        "sleeping":  0.08,
+        "thinking": np.array([0.2, 1.0, 0.4, 1], dtype=np.float32),
+        "error": np.array([1.0, 0.2, 0.2, 1], dtype=np.float32),
+        "sleeping": np.array([1.0, 0.9, 0.2, 1], dtype=np.float32),
+        "speaking": np.array([0.4, 0.85, 1.0, 1], dtype=np.float32),  # light blue
     }
 
     PARTICLE_COUNTS = {
         "listening": 400,
-        "thinking":  650,
-        "error":     400,
-        "sleeping":  150,
+        "thinking": 650,
+        "error": 400,
+        "sleeping": 150,
+        "speaking": 550,  # slightly more than listening
+    }
+
+    COLOR_VARIATION = {
+        "listening": 0.15,
+        "thinking": 0.20,
+        "error": 0.10,
+        "sleeping": 0.08,
+        "speaking": 0.12,
     }
 
     LINE_SETTINGS = {
         "listening": (0.35, 0.25),
-        "thinking":  (0.4,  0.35),
-        "error":     (0.3,  0.4),
-        "sleeping":  (0.5,  0.1),
+        "thinking": (0.4, 0.35),
+        "error": (0.3, 0.4),
+        "sleeping": (0.5, 0.1),
+        "speaking": (0.3, 0.3),  # tighter web, moderate brightness
     }
 
     BREATH_SETTINGS = {
-        "listening": (0.008, 0.03),  # speed, strength
-        "thinking":  (0.015, 0.05),
-        "sleeping":  (0.004, 0.08),
-        "error":     (0.025, 0.04),
+        "listening": (0.008, 0.03),
+        "thinking": (0.015, 0.05),
+        "sleeping": (0.004, 0.08),
+        "error": (0.025, 0.04),
+        "speaking": (0.05, 0.06),  # fast pulse, moderate depth
     }
 
     BASE_SIZE = 3
@@ -219,6 +224,10 @@ class FaceController(QMainWindow):
     # ── public API ────────────────────────────────────────────────────────
 
     def set_state(self, state: str):
+        if self.debug:
+            import traceback
+            print(f"[Face] set_state({state})")
+            traceback.print_stack(limit=4)
         self.signals.state_changed.emit(state)
 
     def set_caption(self, text: str):
@@ -279,6 +288,10 @@ class FaceController(QMainWindow):
             self.set_state("thinking")
             self.on_command(text)
 
+    def set_status(self, text: str):
+        """Show Brain activity in caption area — thread safe."""
+        self.signals.caption_changed.emit(text)
+
     # ── animation ─────────────────────────────────────────────────────────
 
     def _update(self):
@@ -289,9 +302,10 @@ class FaceController(QMainWindow):
             self.current_state = state
             self.target_radius = {
                 "listening": self.base_radius,
-                "thinking":  self.base_radius * 1.1,
-                "error":     self.base_radius * 1.1,
-                "sleeping":  self.base_radius * 0.5,
+                "thinking": self.base_radius * 1.1,
+                "error": self.base_radius * 1.1,
+                "sleeping": self.base_radius * 0.5,
+                "speaking": self.base_radius * 1.05,  # slightly expanded
             }.get(state, self.base_radius)
 
             # update breath settings for new state
@@ -372,6 +386,7 @@ class FaceController(QMainWindow):
         return np.array(verts, dtype=np.float32), np.array(colors, dtype=np.float32)
 
     # ── window management ─────────────────────────────────────────────────
+    # Does not work on Wayland. Should work on just about anything else: x11, mac, windows,etc.
 
     def showEvent(self, event):
         super().showEvent(event)

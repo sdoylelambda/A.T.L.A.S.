@@ -28,7 +28,6 @@ All core functionality runs **completely locally** on your machine. No data leav
 | File/code tools | ✅ | ✅ | ✅ |
 | App launching | ✅ | ⚠️ | ⚠️ |
 | Browser control | ✅ | ✅ | ✅ |
-| GUI | ✅ | ✅ | ✅ |
 
 ⚠️ = works with minor path configuration
 
@@ -40,7 +39,7 @@ All core functionality runs **completely locally** on your machine. No data leav
 
 ## System Requirements
 
-- Linux (tested on Pop!_OS with COSMIC desktop)
+- Linux (tested on Pop!_OS)
 - Python 3.11+
 - 16GB RAM minimum
 - GPU optional (NVIDIA sm_70+ for CUDA) — falls back to CPU automatically
@@ -108,8 +107,6 @@ All core functionality runs **completely locally** on your machine. No data leav
   pip install pyaudio
   pip install simpleaudio
   pip install numpy
-  pip install scipy
-  pip install PyQt5
   pip install playwright
   pip install pyyaml
   pip install anthropic               # Claude API (optional)
@@ -146,7 +143,6 @@ All core functionality runs **completely locally** on your machine. No data leav
   workspace/
   .venv/
   config.yaml
-  .window_pos
   ```
 
 ---
@@ -155,20 +151,19 @@ All core functionality runs **completely locally** on your machine. No data leav
 
 ```
 J.A.R.V.I.S/
-├── main.py                  # Entry point — PyQt5 app + async Observer thread
+├── main.py                  # Entry point
 ├── config.yaml              # Your local config (gitignored)
 ├── config.example.yaml      # Template config to share
 ├── custom_exceptions.py     # PermissionRequired, ModelUnavailable, PlanExecutionError
 ├── workspace/               # Where Jarvis creates files (gitignored)
 ├── modules/
-│   ├── observer.py          # Main loop — listens, routes, responds, command queue
+│   ├── observer.py          # Main loop — listens, routes, responds
 │   ├── brain.py             # LLM routing and plan generation
 │   ├── tool_executor.py     # Executes plans (create files, run scripts, etc.)
 │   ├── app_launcher.py      # Fast keyword-based app launching
 │   ├── browser_controller.py # Playwright browser automation
 │   ├── ears.py              # Microphone input with dynamic noise calibration
 │   ├── tts.py               # Text-to-speech (Piper)
-│   ├── face.py              # PyQt5 GUI — orb, captions, controls
 │   └── stt/
 │       └── hybrid_stt.py    # Speech-to-text (Whisper + Faster-Whisper)
 ```
@@ -190,9 +185,9 @@ llm:
       max_tokens: 500     # cap output length
     classifier:
       name: phi3:mini
-      num_ctx: 1024
+      num_ctx: 512
       temperature: 0.0    # deterministic: no creativity needed
-      max_tokens: 150
+      max_tokens: 50      # hard cap — one sentence max
     code:
       name: deepseek-coder:6.7b
       num_ctx: 4096       # longer context for full code output
@@ -220,11 +215,6 @@ audio:
   silence_seconds: 1.5      # stop recording after this much silence post-speech
   start_multiplier: 4.0     # start_threshold = noise_floor * this
   stop_multiplier: 2.0      # stop_threshold = noise_floor * this
-
-tts:
-  model_path: "en_GB-alan-medium.onnx"  # British male voice
-  speech_rate: 0.8          # < 1.0 is faster
-  pitch_scale: 1.15         # > 1.0 is higher pitch
 ```
 
 ---
@@ -236,47 +226,7 @@ source .venv/bin/activate
 python main.py
 ```
 
-Jarvis will calibrate the microphone noise floor, open the GUI, then say **"Hello sir, what can I do for you"** when ready.
-
----
-
-## GUI
-
-The GUI is a PyQt5 window with a vispy 3D particle orb embedded above a control panel.
-
-### Orb States
-| State | Color | Animation |
-|-------|-------|-----------|
-| Listening | Blue | Slow gentle pulse |
-| Thinking | Green | Medium pulse, more particles |
-| Speaking | Light blue | Fast pulse |
-| Sleeping | Yellow | Very slow deep breath, sparse particles |
-| Error | Red | Rapid jitter |
-
-The orb features per-particle color variation, depth-based size variation, and beam line connections between nearby particles for a holographic look. Each state has distinct particle density, breathing speed, and connection density.
-
-### Caption Area
-Displays real-time status as Jarvis works:
-```
-classifying...
-planning...
-step 1 of 3: create_dir...
-step 2 of 3: generate_code...
-waiting for confirmation...
-```
-Shows spoken text when Jarvis is speaking, clears automatically after.
-
-### Controls
-| Control | Function |
-|---------|----------|
-| Text input + Send | Type commands directly, bypasses voice |
-| Cancel button | Stops current task, returns to listening |
-| Mute button | Toggles microphone on/off, turns red when active |
-
-### GUI Notes
-- Window positioning and always-on-top not supported under Wayland by design
-- On COSMIC desktop: right-click titlebar → Sticky to pin above other windows
-- On X11: window position saves automatically every 5 seconds and restores on next launch
+Jarvis will calibrate the microphone noise floor, then say **"Hello sir, what can I do for you"** when ready.
 
 ---
 
@@ -323,6 +273,7 @@ Shows spoken text when Jarvis is speaking, clears automatically after.
 |-----|--------|
 | `google latest AI news` | Opens browser, searches Google |
 | `youtube lo-fi music` | Opens YouTube search |
+| `search for python tutorials` | Google search |
 | `navigate to github.com` | Opens URL directly |
 | `scroll down` / `go down` | Scroll page down |
 | `scroll up` / `go up` | Scroll page up |
@@ -331,6 +282,7 @@ Shows spoken text when Jarvis is speaking, clears automatically after.
 | `new tab` / `close tab` | Tab management |
 | `click first result` | Clicks first search result |
 | `zoom in` / `zoom out` / `zoom reset` | Page zoom |
+| `find` | Open browser find bar |
 | `full screen` | Toggle fullscreen |
 
 ### Keyboard Shortcuts (Context-Aware)
@@ -364,8 +316,6 @@ Hallucination filter — drops repetitive/too-short/echo audio
 Fast keyword layer (AppLauncher)
     ├── matched → execute instantly (open app, wake, pause, cancel)
     └── no match ↓
-Command Queue — voice keeps listening while Brain processes
-    ↓
 phi3:mini classifier
     ├── simple fact/conversation → answer directly (~2-4 seconds)
     └── ESCALATE ↓
@@ -380,20 +330,6 @@ ToolExecutor
     ├── read_file, run_script, list_dir, delete_file
     └── web_search, browser_navigate, browser_search
 ```
-
----
-
-## Command Queue
-
-Jarvis processes commands concurrently — voice keeps listening while Brain is working. Say a second command while Jarvis is executing the first and it will be queued and processed immediately after.
-
-```
-"create a flask app"  →  Brain starts working
-"what's 5 times 5"   →  queued while Brain works
-                         answered immediately after first command finishes
-```
-
-Commands are processed one at a time in order — no commands are dropped.
 
 ---
 
@@ -432,7 +368,7 @@ For any command that involves executing steps, Jarvis will:
 1. **Speak the plan** — "Creating flask folder with backend.py inside."
 2. **Ask for confirmation** — "Shall I proceed, sir?"
 3. **Wait for your response** — say yes/yeah/do it/go ahead to confirm, anything else cancels
-4. **Execute** — runs each step, updates GUI caption with live progress, checks for cancel between steps
+4. **Execute** — runs each step, checks for cancel between steps
 5. **Report** — "Done, sir. Code written to workspace/backend.py"
 
 **File exists?** Jarvis says "backend.py already exists, sir. Say overwrite to replace it." Say overwrite/replace/yes to proceed or anything else to keep the existing file.
@@ -445,16 +381,8 @@ For any command that involves executing steps, Jarvis will:
 
 ### Complete
 - [x] Voice input (Whisper + Faster-Whisper hybrid STT)
-- [x] Voice output (Piper TTS) with British male voice, speed and pitch control
-- [x] PyQt5 GUI with embedded vispy 3D particle orb
-- [x] Five orb states — listening, thinking, speaking, sleeping, error
-- [x] Per-particle color variation and depth-based size variation
-- [x] Beam line connections for holographic look
-- [x] Smooth sin-wave breathing animation per state
-- [x] Real-time caption display — Brain status and spoken text
-- [x] Cancel button — stops current task instantly
-- [x] Mute button — toggles microphone
-- [x] Text input field — type commands directly
+- [x] Voice output (Piper TTS)
+- [x] Basic GUI (listening, thinking, error, sleeping states)
 - [x] Wake word / sleep commands
 - [x] Fast keyword command layer
 - [x] App launching
@@ -469,10 +397,9 @@ For any command that involves executing steps, Jarvis will:
 - [x] Privacy-first API permission system
 - [x] Hallucination and echo loop filters
 - [x] Echo cancellation (ears paused during TTS + buffer flush)
-- [x] Plan → Confirm → Execute flow with live step progress in GUI
+- [x] Plan → Confirm → Execute flow
 - [x] File overwrite confirmation
 - [x] Cancel between execution steps
-- [x] Command queue — speak next command while Brain is working
 - [x] "One moment please" for slow Brain responses
 - [x] Dynamic noise floor calibration (auto-adjusts to environment every 20s)
 - [x] ALSA stream recovery with exponential backoff
@@ -480,6 +407,7 @@ For any command that involves executing steps, Jarvis will:
 - [x] DeepSeek explanation stripper — fluff auto-commented at bottom of file
 
 ### Planned
+- [ ] GUI update — display thought process, text field, mute button
 - [ ] Claude / Gemini API routing
 - [ ] Self-expanding fast keyword layer
 - [ ] RAG over local notes and files
@@ -538,47 +466,6 @@ For any command that involves executing steps, Jarvis will:
 - Ears resumes after TTS — speak clearly after Jarvis finishes asking
 - If misheard, it will cancel — just repeat the command
 
-**GUI window position not saving**
-- Position save/restore only works on X11 — not supported under Wayland by design
-- On COSMIC desktop: right-click titlebar → Sticky to pin the window
-
-**GUI loads in the middle of the screen**
-- Expected on Wayland — compositor controls window placement
-- Drag to preferred position and use compositor sticky/pin feature
-
----
-
-## Running Tests
-```bash
-source .venv/bin/activate
-pytest tests/ -v
-```
-
-### Test Structure
-```
-tests/
-├── conftest.py              # shared fixtures — mock config, mock audio, fake Observer
-├── test_brain.py            # LLM routing, plan generation, context window sizing
-├── test_tool_executor.py    # file creation, code generation, plan execution
-├── test_observer.py         # command routing, cancel, confirmation flow
-├── test_ears.py             # noise calibration, hallucination filters
-└── test_stt.py              # transcription, echo detection
-```
-
-### Running Specific Tests
-```bash
-pytest tests/test_brain.py -v          # brain tests only
-pytest tests/test_tool_executor.py -v  # tool executor only
-pytest -k "test_cancel" -v             # any test with "cancel" in the name
-pytest -x                              # stop on first failure
-```
-
-### Test Coverage
-```bash
-pip install pytest-cov
-pytest tests/ --cov=modules --cov-report=term-missing
-```
-
 ---
 
 ## Privacy
@@ -592,4 +479,4 @@ pytest tests/ --cov=modules --cov-report=term-missing
 
 ## Credits
 
-Built with: Ollama, Whisper, Faster-Whisper, Piper TTS, simpleaudio, PyAudio, PyQt5, vispy, scipy, Playwright, phi3:mini, Mistral 7B, DeepSeek Coder 6.7B, numpy, PyYAML
+Built with: Ollama, Whisper, Faster-Whisper, Piper TTS, simpleaudio, PyAudio, Playwright, phi3:mini, Mistral 7B, DeepSeek Coder 6.7B, numpy, PyYAML

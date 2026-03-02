@@ -42,35 +42,10 @@ Work station opens Pycharm, creates project. Sends screenshot to cell phone.
 User views screenshot on cellphone then says run it.
 Project runs on secondary computer. (Reduces load on primary computer, periphals, monitor, etc - Primary computer free to function as normal without interference.)
 
-### Next Steps
-[] - Remember Conversations
-[] - Adapt
-[] - Move files from / that aren't needed there
-[] - Remove extra code/files/etc.
-[] - More AI models for more tasks
-    [] - General question escalation AI
-    [] - Write email/paper/pdf AI
-[] - ask what can you do? get response
-[] - config linux/mac/windows versions
-[] - top level debug? or keep per file?
-[] - research {topic} create md and give short audio summary
-[] - RULE: One sentence max for all responses. --- make 2 sentences?
-[] - calendar integration
-    [] - what do i have today? add event
-    [] - timer --- remind me this 30 minutes to call jon
-[] - test performance under load/multitasking
-[] -  ui button to proceed - build it
-[] - for 'bike week schedule' Jarvis should say feb 27-march 7
-[] - say hello -> i'm jarvis...
-[] - say what can you do -> i'm jarvis, here to...
-[] - try different stt model sizes - see time delay? - maybe large is fine?
-[] - 1st word or 2 cut off - fix
-[] - max recording length?
-
 
 Claude joint plan
 Claude / Gemini API routing — infrastructure built, just needs the google-genai fix and end-to-end testing
-Save window position — remember where user dragged the GUI, restore on next launch
+Save window position — remember where user dragged the GUI, restore on next launch --- can't on wayland
 
 Planned Features
 
@@ -92,3 +67,47 @@ Stretch Goals
 
 React/Flutter GUI — full web-based interface with richer animations
 Voice training — tune STT to your specific voice
+
+
+
+i think this was already part of the plan but i want to discuss a little.
+
+i want Jarvis to be able to remember conversations. so maybe create a md file for each conversation/project so he can
+remember context and learn/grow.
+
+it seems like i had Jarvis do a web search for time zones that it then read me the answer. how to have him always read
+the answer, not just pull up a browser that has the answer?
+
+Jarvis makes responses code always. if no code or file creation is in the request prompt, i want just an answer, not a
+file with the answer.
+
+
+
+
+### Next Steps
+[] - GUI update
+    [] - ui button to proceed - build it
+    [] - speaking face color
+    [] - display thought process
+[] - Remember Conversations
+[] - Adapt
+[] - Move files from / that aren't needed there
+[] - Remove extra code/files/etc.
+[] - More AI models for more tasks
+    [] - General question escalation AI
+    [] - Write email/paper/pdf AI
+[] - ask what can you do? get response
+[] - config linux/mac/windows versions
+[] - top level debug? or keep per file?
+[] - research {topic} create md and give short audio summary
+[x] - RULE: One sentence max for all responses. --- made it 'Keep responses as short as possible.'
+[] - calendar integration
+    [] - what do i have today? add event
+    [] - timer --- remind me this 30 minutes to call jon
+[] - test performance under load/multitasking
+[] - for 'bike week schedule' Jarvis should say feb 27-march 7
+[] - say hello -> i'm jarvis...
+[] - say what can you do -> i'm jarvis, here to...
+[x] - try different stt model sizes - see time delay? +5 seconds large not much better - small for fast response
+[] - 1st word or 2 cut off - fix
+[] - max recording length?

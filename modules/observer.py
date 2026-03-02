@@ -21,6 +21,7 @@ class Observer:
         self.debug = True
         self._last_spoken = ""
         self._last_spoken_time = 0
+        self._finishing = False
 
         self.brain = Brain(config)
         self.ears = Ears()  # pass config
@@ -52,7 +53,7 @@ class Observer:
             try:
                 if self.paused:
                     self.face.set_state("sleeping")
-                elif not self._processing:
+                elif not self._processing and not self._finishing:
                     self.face.set_state("listening")
 
                 # 🎧 Listen
@@ -192,11 +193,24 @@ class Observer:
         try:
             try:
                 self.face.set_state("thinking")
+                self.face.set_caption("classifying...")  # ← add
                 plan = await asyncio.to_thread(self.brain.process, command)
                 notice_task.cancel()
 
+                # validate route field
+                if plan.get("route") not in ("local", "claude", "gemini", None):
+                    print(f"[Brain] Invalid route '{plan.get('route')}', defaulting to local")
+                    plan["route"] = "local"
+                notice_task.cancel()
+                # show what Brain decided
+                if plan.get("steps"):
+                    self.face.set_caption("planning...")  # ← Mistral made a plan
+                else:
+                    self.face.set_caption("")  # ← phi3 answered directly
+                    await asyncio.sleep(0)  # flush any pending Qt signal updates
+
                 if self.cancelled:
-                    await self.say("Cancelled, sir.")
+                    await self.say("Cancelled, sir.", next_state="listening")
                     return
 
                 await self._execute_plan_with_confirm(plan, command)
@@ -221,6 +235,7 @@ class Observer:
                     await self.say("I ran into a problem with that one, sir.")
 
         finally:
+            self._finishing = True
             self._processing = False
             cancel_task.cancel()
             notice_task.cancel()
@@ -231,10 +246,11 @@ class Observer:
                 except asyncio.CancelledError:
                     pass
             self.face.set_state("listening")
+            self._finishing = False
 
     async def _thinking_notice(self):
         """Speak 'one moment' if Brain takes too long."""
-        await asyncio.sleep(7.0)
+        await asyncio.sleep(7.5)
         if not self.cancelled:
             await self.say("One moment please, sir.")
 
@@ -267,11 +283,13 @@ class Observer:
             summary = summary.split("{")[0].strip()
 
         if not plan.get("steps"):
-            await self.say(summary)
+            await self.say(summary, next_state="listening")
             return
 
         await self.say(summary)
         await self.say("Shall I proceed, sir?")
+
+        self.face.set_caption("waiting for confirmation...")
 
         audio_bytes, duration = await self.ears.listen()
         response = self.stt.transcribe(audio_bytes, duration).lower().strip() if audio_bytes else ""
@@ -285,25 +303,38 @@ class Observer:
         await asyncio.sleep(3.5)  # adjust wait time before cancel here (move to config?)
 
         if not confirmed:
-            await self.say("Understood, sir. Cancelled.")
+            self.face.set_caption("")
+            await self.say("Understood, sir. Cancelled.", next_state="listening")
             return
 
+        self.face.set_caption("")
         await self.say("Building it now, sir.")
 
         if self.cancelled:
-            await self.say("Cancelled, sir.")
+            await self.say("Cancelled, sir.", next_state="listening")
             return
 
+        # show writing code if any step is generate_code
+        steps = plan.get("steps", [])
+        if any(s.get("action") == "generate_code" for s in steps):
+            self.face.set_caption("writing code...")  # ← add this
+
         results = await self.executor.execute_plan(
-            plan, cancelled=lambda: self.cancelled
+            plan,
+            cancelled=lambda: self.cancelled,
+            on_step=lambda i, total, action: self.face.set_caption(
+                f"step {i} of {total}: {action}..."
+            )
         )
+
+        self.face.set_caption("")
 
         if self.cancelled:
             await self.say("Cancelled, sir.")
             return
 
         if results:
-            await self.say(results[-1])
+            await self.say(results[-1], next_state="listening")
 
     async def _handle_permission(self, e: PermissionRequired, command: str):
         """Handle API permission requests."""
@@ -393,7 +424,7 @@ class Observer:
         overlap = words_a & words_b
         return len(overlap) / max(len(words_a), len(words_b))
 
-    async def say(self, text: str):
+    async def say(self, text: str, next_state: str = None) -> None:
         """Speak and pause ears during playback to prevent echo."""
         if self.debug:
             print(f"[Observer] Pausing ears")
@@ -401,8 +432,9 @@ class Observer:
         self._last_spoken = text.lower().strip()
         self._last_spoken_time = time.time()
         self.face.set_caption(text)  # ← show in GUI
+        self.face.set_state("speaking")
         await self.mouth.speak(text)
-        # check if canceled during speech
+        self.face.set_state(next_state or ("thinking" if self._processing else "listening"))        # check if canceled during speech
         if self.cancelled:
             self.ears.paused = False
             return

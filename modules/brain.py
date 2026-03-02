@@ -119,7 +119,6 @@ class Brain:
 
             ESCALATE for anything code or creation related: files, languages, apps, web, scripts, system.
             ESCALATE if unsure. Never write code. Never pretend to do computer tasks.
-            ESCALATE if you say I'm sorry or I can't
 
             # Examples:
             User: create a file
@@ -194,9 +193,23 @@ class Brain:
         if "ESCALATE" in result:
             return None
 
-        # if len(result.split()) > 120:
-        #     print("[Brain] phi3 response too long, forcing ESCALATE")
-        #     return None
+        # Excavate rather than fail
+        escalate_phrases = [
+            "i'm sorry",
+            "i am sorry",
+            "i can't",
+            "i cannot",
+            "i'm unable",
+            "i am unable",
+            "i don't have",
+            "i do not have",
+            "as an ai",
+            "i'm just an ai",
+        ]
+
+        if any(phrase in result.lower() for phrase in escalate_phrases):
+            print(f"[Brain] phi3 apologized or refused, forcing ESCALATE")
+            return None
 
         # If trying to return code
         if ("```" in result or
@@ -269,6 +282,7 @@ class Brain:
             - Never use write_code and generate_code together for the same file
             - Never put more than 10 lines of code in write_code content
             - Keep JSON responses concise — descriptions only, never actual code content
+            - "route" must always be "local", "claude", or "gemini" — never a tool name
     
             Set route to "claude" for complex reasoning or long document analysis.
             Set route to "gemini" for real-time or current information.
@@ -286,6 +300,9 @@ class Brain:
     
             User: create a homepage.html with about and contact sections
             {"summary": "Generating homepage.html with sections.", "route": "local", "steps": [{"action": "generate_code", "params": {"path": "homepage.html", "description": "HTML page with inline CSS, home, about us, contact sections"}}]}
+    
+            User: what is star wars about
+            {"summary": "Star Wars is a space opera franchise created by George Lucas.", "route": "local", "steps": []}
     
             Only return JSON. No explanation. No markdown. No code blocks.""").strip()
 
