@@ -92,10 +92,12 @@ file with the answer.
 [] - Remember Conversations
 [] - Adapt
 [] - Move files from / that aren't needed there
+    [] - move actions to task folder
 [] - Remove extra code/files/etc.
 [] - More AI models for more tasks
     [] - General question escalation AI
     [] - Write email/paper/pdf AI
+[] - fix broken tests
 [] - ask what can you do? get response
 [] - config linux/mac/windows versions
 [] - top level debug? or keep per file?
