@@ -125,16 +125,32 @@ All core functionality runs **completely locally** on your machine. No data leav
 - [ ] Set `audio.use_mock: false` for real microphone
 - [ ] Set `system.use_gpu: true` if you have a compatible NVIDIA GPU (sm_70+)
 - [ ] Add API keys if using cloud models (optional)
-  ```yaml
-  api_keys:
-    anthropic: "your-key-here"
-    google: "your-key-here"
-  ```
 
 ### API Keys (Optional)
 - [ ] Anthropic (Claude) — https://console.anthropic.com
 - [ ] Google (Gemini) — https://console.cloud.google.com
 - [ ] Set `api_models.claude.enabled: true` and/or `api_models.gemini.enabled: true` in config to activate
+### Gemini Setup
+```bash
+# key is stored securely in OS keyring on first use — never touches disk
+# just run Jarvis and it will prompt you automatically when first using api
+# enter key in terminal run window
+python main.py
+```
+
+Or store it manually in advance:
+```python
+from modules.api_key_manager import get_api_key
+get_api_key("gemini")  # prompts once, stores in keyring forever
+```
+```yaml
+# config.yaml
+api_models:
+  gemini:
+    enabled: true
+    model: gemini-2.5-flash  # free tier
+    ask_permission: true     # asks before every API call
+```
 
 ### Workspace
 - [ ] `workspace/` directory is created automatically on first run
@@ -405,10 +421,12 @@ For any command that involves executing steps, Jarvis will:
 - [x] ALSA stream recovery with exponential backoff
 - [x] Stream lock preventing concurrent mic access crashes (SIGABRT/SIGSEGV)
 - [x] DeepSeek explanation stripper — fluff auto-commented at bottom of file
+- [x] GUI update — display thought process, text field, mute button
+- [x] Gemini API routing
+- [x] Add key prompt initiated by using Gemini for the first time
 
 ### Planned
-- [ ] GUI update — display thought process, text field, mute button
-- [ ] Claude / Gemini API routing
+- [ ] Claude API routing
 - [ ] Self-expanding fast keyword layer
 - [ ] RAG over local notes and files
 - [ ] Screen / vision support (LLaVA)

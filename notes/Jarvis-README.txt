@@ -85,17 +85,19 @@ file with the answer.
 
 
 ### Next Steps
-[] - GUI update
+[x] - GUI update
     [] - ui button to proceed - build it
-    [] - speaking face color
-    [] - display thought process
+    [x] - speaking face color
+    [x] - display thought process
 [] - Remember Conversations
 [] - Adapt
 [] - Move files from / that aren't needed there
+    [] - move actions to task folder
 [] - Remove extra code/files/etc.
 [] - More AI models for more tasks
     [] - General question escalation AI
     [] - Write email/paper/pdf AI
+[] - fix broken tests
 [] - ask what can you do? get response
 [] - config linux/mac/windows versions
 [] - top level debug? or keep per file?
