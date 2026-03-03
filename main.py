@@ -1,8 +1,9 @@
 import asyncio
 import yaml
 import threading
-import os
 import sys
+import asyncio
+import os
 
 # must be set before QApplication is created
 os.environ["QT_WAYLAND_APPID"] = "jarvis.assistant"
@@ -11,12 +12,15 @@ from PyQt5.QtWidgets import QApplication
 from modules.face import FaceController
 from modules.window_controller import WindowController
 from modules.observer import Observer
+from modules.browser_controller import BrowserController
 
 
 def run_async(face, config):
     async def main():
         window_controller = WindowController()
         observer = Observer(face, window_controller, config)
+        # browser = BrowserController()
+        # await browser.start()
 
         loop = asyncio.get_running_loop()
 

@@ -11,18 +11,44 @@ class BrowserController:
         print("[Browser] Lazy init ready")
 
     # ==========================================
-    # Ensure browser exists
+    # Playwright browser control
     # ==========================================
+    async def start(self):
+        """Launches Playwright browser in stealth mode to avoid detection"""
+        print("[Browser] Launching Playwright browser...")
+        self.playwright = await async_playwright().start()
+        self.browser = await self.playwright.chromium.launch(
+            headless=False,
+            args=[
+                "--autoplay-policy=no-user-gesture-required",
+                "--disable-blink-features=AutomationControlled",  # key line
+            ]
+        )
+        # Use a real user agent and hide automation signals
+        self.context = await self.browser.new_context(
+            user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            java_script_enabled=True,
+        )
+        # Remove the webdriver property that YouTube checks
+        await self.context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined})
+        """)
+        self.page = await self.context.new_page()
+        print("[Browser] Ready")
+
+    async def stop(self):
+        """Call on shutdown."""
+        await self.browser.close()
+        await self.playwright.stop()
+
     async def _ensure_browser(self):
+        """Recover browser if it is unavailable."""
         if await self._ensure_page_alive():
             return
 
-        print("[Browser] Launching Playwright browser...")
-        self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=False)
-        self.context = await self.browser.new_context()
-        self.page = await self.context.new_page()
-        print("[Browser] Ready")
+        print("[Browser] Recovering lost browser session...")
+        await self.start()
+        print("[Browser] Recovered")
 
     async def _ensure_page_alive(self) -> bool:
         """Check if page is still usable, reset if not."""
@@ -43,6 +69,7 @@ class BrowserController:
     # MAIN ROUTER
     # ==========================================
     async def handle_command(self, spoken_text: str):
+        await self._ensure_browser()
         text = spoken_text.lower().strip()
 
         # --- GOOGLE SEARCH ---
