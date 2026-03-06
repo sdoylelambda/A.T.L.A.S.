@@ -89,6 +89,13 @@ class BrowserController:
             print("[Browser] Profile already exists, skipping setup.")
             return
 
+        # check if browser already running
+        for proc in psutil.process_iter(['name']):
+            if proc.info['name'] and running_name in proc.info['name'].lower():
+                print(f"[Browser] ⚠️  {browser_type} is running — please close it, then restart Jarvis.")
+                input("Press Enter once closed...")
+                break
+
         os.makedirs(profile_path, exist_ok=True)
         print(f"[Browser] First run — setting up {browser_type} profile.")
 
@@ -97,9 +104,16 @@ class BrowserController:
             self.context = await self.playwright.firefox.launch_persistent_context(
                 user_data_dir=profile_path,
                 headless=False,
-                executable_path=self.firefox_executable_path,
                 firefox_user_prefs={
                     "browser.downgrade.ignore": True,
+                    "browser.sessionstore.resume_from_crash": False,
+                    "browser.startup.page": 0,
+                    "browser.startup.homepage_override.mstone": "ignore",
+                    "toolkit.startup.max_resumed_crashes": -1,
+                    "browser.shell.checkDefaultBrowser": False,
+                    "browser.tabs.warnOnClose": False,
+                    "datareporting.policy.dataSubmissionEnabled": False,
+                    "datareporting.healthreport.uploadEnabled": False,
                 }
             )
             self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
@@ -109,7 +123,7 @@ class BrowserController:
         elif browser_type == "chrome":
             proc = subprocess.Popen([
                 "google-chrome",
-                f"--user-data-dir={profile_path}",
+                "--profile-directory=Jarvis"
             ])
             proc.wait()
             print("[Browser] Profile setup complete. Continuing startup...")

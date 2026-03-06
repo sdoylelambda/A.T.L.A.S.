@@ -85,7 +85,7 @@ transcription:
   engine: faster-whisper
 
   tts:
-    # mock TTS for now
+    # mock TTS
     enabled: false
     engine: "coqui"
     voice: "default"
@@ -123,11 +123,9 @@ system:
   cpu_threads: 6
   use_gpu: false
 
-# DO NOT SHARE THESE
 browser:
-  profile: "jarvis"      # options: stealth, jarvis, firefox
-  chrome_profile_path: "/home/zero/.config/google-chrome/Jarvis"
+  profile: "jarvis"
+  chrome_profile_path: "/home/zero/.config/google-chrome/jarvis"
   use_chrome: false
   firefox_profile_path: "/home/zero/.mozilla/firefox/jarvis"
   use_firefox: true
-#  firefox_executable_path: "/usr/bin/firefox"

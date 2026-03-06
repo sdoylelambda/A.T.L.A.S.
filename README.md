@@ -64,6 +64,9 @@ All core functionality runs **completely locally** on your machine. No data leav
   ```
 - [ ] Playwright system dependencies
   ```bash
+  playwright install firefox
+  playwright install-deps
+  and/or then updage config.yaml 'use_chrome: true', 'use_firefox: false'
   playwright install chromium
   playwright install-deps
   ```
@@ -148,6 +151,19 @@ All core functionality runs **completely locally** on your machine. No data leav
   config.yaml
   .window_pos
   ```
+  ### Browser Profile (First Run)
+Jarvis creates a persistent browser profile automatically on first use.
+When you say your first browser command, a Firefox window will open.
+Log into YouTube, Gmail, or any sites you want Jarvis to access.
+Your session is saved — you won't be asked again.
+
+To use Chrome instead, update config.yaml:
+```yaml
+browser:
+  use_chrome: true
+  use_firefox: false
+  chrome_profile_path: "/home/YOUR_USER/.config/google-chrome/Jarvis"
+```
 
 ---
 
@@ -178,53 +194,137 @@ J.A.R.V.I.S/
 ## config.yaml Reference
 
 ```yaml
+# ---- Node identity ----
+node:
+  name: "g7"
+  role: "single_node" # single_node | observer | brain | hands
+
+# ---- Networking (future use) ----
+network:
+  brain_ip: "127.0.0.1"
+  brain_port: 8000
+  hands_ip: "127.0.0.1"
+  hands_port: 8001
+  observer_ip: "127.0.0.1"
+  observer_port: 8002
+
+# ---- LLM (disabled for now) ----
 llm:
   enabled: true
-  backend: local
+  # local | remote
+  backend: "local"
 
   models:
-    orchestrator:
-      name: mistral
-      num_ctx: 4096       # dynamically overridden based on command complexity
-      temperature: 0.2    # low-medium: consistent JSON output
-      max_tokens: 500     # cap output length
     classifier:
       name: phi3:mini
-      num_ctx: 1024
-      temperature: 0.0    # deterministic: no creativity needed
-      max_tokens: 150
+      # set for 3 sentence max responses - double if cut off
+      num_ctx: 2048
+      # deterministic - no creativity needed, just classify
+      temperature: 0.0
+      # hard output cap - 3 sentence max - increase for longer responses from phi3 (basic AI)
+      max_tokens: 300
+
+    orchestrator:
+      name: mistral
+      # set for shorter commands - double if cut off
+      num_ctx: 8092
+      # low-medium - consistent JSON output, handles varied phrasing
+      temperature: 0.2
+      max_tokens: 500
+
     code:
+      # deepseek-r1 - Deep system analysis
       name: deepseek-coder:6.7b
-      num_ctx: 4096       # longer context for full code output
-      temperature: 0.1    # nearly deterministic: correct over creative
+      # longer context for full code output - bump to 8192 if truncating complex outputs
+      num_ctx: 8092
+      # nearly deterministic - correct code over creative code
+      temperature: 0.1
 
   api_models:
     claude:
-      enabled: false      # set true + add API key to activate
+      enabled: false
       model: claude-opus-4-6
       max_tokens: 1000
-      ask_permission: true  # always ask before sending data externally
+      ask_permission: true
     gemini:
-      enabled: false
-      model: gemini-pro
+      enabled: true
+      # models/gemini-2.5-flash-lite -
+      model: gemini-2.5-flash
       ask_permission: true
 
-system:
-  use_gpu: false          # set true if you have a compatible GPU (sm_70+)
+  # legacy/unused for now
+  model_path: "./models/mpt-7b/"
 
+# ---- Memory ----
+memory:
+  enabled: false # enable later when adding FAISS
+  vector_db_path: "./memory/vector_db/"
+  short_term_db: "./memory/short_term.db"
+  recall_top_k: 5
+
+# ---- Audio ----
 audio:
-  use_mock: false         # set true to disable mic for testing
-  calibration_interval: 20  # recalibrate noise floor every N seconds
-  pre_speech_timeout: 3.0   # give up waiting for speech after 3s of silence
-  max_speech_duration: 25.0 # hard cap on recording length
-  silence_seconds: 1.5      # stop recording after this much silence post-speech
-  start_multiplier: 4.0     # start_threshold = noise_floor * this
-  stop_multiplier: 2.0      # stop_threshold = noise_floor * this
+  samplerate: 16000
+  # Max length of message that can be heard in seconds
+  duration: 30
+  mic_index: null
+  use_mock: false
+  calibration_interval: 30
+  # give up waiting to START speaking after 3s
+  pre_speech_timeout: 3.0
+  # hard cap — allows long commands
+  max_speech_duration: 25.0
+  # wait 1.5s of silence before stopping mid-speech
+  silence_seconds: 1.5
 
-tts:
-  model_path: "en_GB-alan-medium.onnx"  # British male voice
-  speech_rate: 0.8          # < 1.0 is faster
-  pitch_scale: 1.15         # > 1.0 is higher pitch
+transcription:
+  engine: faster-whisper
+
+  tts:
+    # mock TTS
+    enabled: false
+    engine: "coqui"
+    voice: "default"
+
+    # update
+
+# ---- Execution permissions ----
+permissions:
+  allow_file_write: true
+  # safer default
+  allow_command_exec: false
+  allow_network: false
+
+# ---- Logging ----
+logging:
+  level: "INFO"
+  file: "./logs/jarvis.log"
+
+# ---- Development ----
+dev:
+  # IMPORTANT: keeps everything lightweight
+  mock_mode: true
+  auto_approve: false
+
+stt:
+  language: en
+  # Length of message that can be heard in seconds
+  duration: 30
+   # tiny | base | small | medium | large
+  whisper_model: small
+  # tiny | base | small | medium | large
+  fw_model: small
+
+system:
+  cpu_threads: 6
+  use_gpu: false
+
+browser:
+  profile: "jarvis"
+  chrome_profile_path: "/home/{user}/.config/google-chrome/jarvis"
+  use_chrome: false
+  firefox_profile_path: "/home/{user}/.mozilla/firefox/jarvis"
+  use_firefox: true
 ```
 
 ---
