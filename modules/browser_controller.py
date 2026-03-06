@@ -1,49 +1,136 @@
 from playwright.async_api import async_playwright
 import urllib.parse
+import os
+import asyncio
 
 
 class BrowserController:
-    def __init__(self):
+    def __init__(self, config: dict):
         self.playwright = None
         self.browser = None
         self.context = None
         self.page = None
+        self.use_chrome = config["browser"].get("use_chrome", False)
+        self.chrome_profile_path = config["browser"].get("chrome_profile_path", None)
+        self.use_firefox = config["browser"].get("use_firefox", True)
+        self.firefox_profile_path = config["browser"].get("firefox_profile_path", None)
+        self.firefox_executable_path = config["browser"].get("firefox_executable_path", None)
         print("[Browser] Lazy init ready")
 
     # ==========================================
     # Playwright browser control
     # ==========================================
     async def start(self):
-        """Launches Playwright browser in stealth mode to avoid detection"""
         print("[Browser] Launching Playwright browser...")
         self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(
-            headless=False,
-            args=[
-                "--autoplay-policy=no-user-gesture-required",
-                "--disable-blink-features=AutomationControlled",  # key line
-            ]
-        )
-        # Use a real user agent and hide automation signals
-        self.context = await self.browser.new_context(
-            user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            java_script_enabled=True,
-        )
-        # Remove the webdriver property that YouTube checks
-        await self.context.add_init_script("""
-            Object.defineProperty(navigator, 'webdriver', {get: () => undefined})
-        """)
-        self.page = await self.context.new_page()
-        print("[Browser] Ready")
+
+        try:
+            if self.use_chrome:
+                if not os.path.exists(self.chrome_profile_path):
+                    await self._create_profile("chrome")
+                    return
+                self.context = await self.playwright.chromium.launch_persistent_context(
+                    user_data_dir=self.chrome_profile_path,
+                    headless=False,
+                    channel="chrome",
+                    args=["--autoplay-policy=no-user-gesture-required"]
+                )
+
+            elif self.use_firefox:
+                print(f"[Browser] Profile path: {self.firefox_profile_path}")
+                print(f"[Browser] Profile exists: {os.path.exists(self.firefox_profile_path)}")
+                print(
+                    f"[Browser] prefs.js exists: {os.path.exists(os.path.join(self.firefox_profile_path, 'prefs.js'))}")
+
+                if not os.path.exists(os.path.join(self.firefox_profile_path, "prefs.js")):
+                    await self._create_profile("firefox")
+                    return
+
+                self.context = await self.playwright.firefox.launch_persistent_context(
+                    user_data_dir=self.firefox_profile_path,
+                    executable_path=self.firefox_executable_path,
+                    headless=False,
+                    firefox_user_prefs={
+                        "browser.downgrade.ignore": True,
+                        "browser.sessionstore.resume_from_crash": False,
+                        "browser.startup.page": 0,  # blank page on startup
+                        "browser.startup.homepage_override.mstone": "ignore",
+                        "toolkit.startup.max_resumed_crashes": -1,
+                        "browser.shell.checkDefaultBrowser": False,
+                        "browser.tabs.warnOnClose": False,
+                        "datareporting.policy.dataSubmissionEnabled": False,
+                        "datareporting.healthreport.uploadEnabled": False,
+                    }
+                )
+
+            self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
+            print(f"[Browser] Ready — page url: {self.page.url}")
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"[Browser] Failed to launch: {e}")
+
+    async def _create_profile(self, browser_type: str):
+        """First run only — creates browser profile for persistent logins."""
+        import subprocess
+        import psutil
+
+        if browser_type == "chrome":
+            profile_ready = os.path.exists(os.path.join(self.chrome_profile_path, "Default"))
+            running_name = "chrome"
+            profile_path = self.chrome_profile_path
+        else:
+            profile_ready = os.path.exists(os.path.join(self.firefox_profile_path, "prefs.js"))
+            running_name = "firefox"
+            profile_path = self.firefox_profile_path
+
+        if profile_ready:
+            print("[Browser] Profile already exists, skipping setup.")
+            return
+
+        os.makedirs(profile_path, exist_ok=True)
+        print(f"[Browser] First run — setting up {browser_type} profile.")
+
+        if browser_type == "firefox":
+            self.playwright = await async_playwright().start()
+            self.context = await self.playwright.firefox.launch_persistent_context(
+                user_data_dir=profile_path,
+                headless=False,
+                executable_path=self.firefox_executable_path,
+                firefox_user_prefs={
+                    "browser.downgrade.ignore": True,
+                }
+            )
+            self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
+            print("[Browser] Profile created. Ready.")
+            return
+
+        elif browser_type == "chrome":
+            proc = subprocess.Popen([
+                "google-chrome",
+                f"--user-data-dir={profile_path}",
+            ])
+            proc.wait()
+            print("[Browser] Profile setup complete. Continuing startup...")
 
     async def stop(self):
-        """Call on shutdown."""
-        await self.browser.close()
-        await self.playwright.stop()
+        """Shutdown browser cleanly."""
+        if self.context:
+            await self.context.close()
+        if self.playwright:
+            await self.playwright.stop()
 
     async def _ensure_browser(self):
-        """Recover browser if it is unavailable."""
         if await self._ensure_page_alive():
+            return
+
+        if self.playwright is None:
+            print("[Browser] First browser command — launching...")
+            try:
+                await asyncio.wait_for(self.start(), timeout=30)
+            except asyncio.TimeoutError:
+                print("[Browser] Launch timed out after 30s")
             return
 
         print("[Browser] Recovering lost browser session...")
@@ -69,7 +156,33 @@ class BrowserController:
     # MAIN ROUTER
     # ==========================================
     async def handle_command(self, spoken_text: str):
-        await self._ensure_browser()
+        text = spoken_text.lower().strip()
+        print(f"[Browser] handle_command called: '{text}'")
+
+        # check if this is actually a browser command first
+        is_browser_command = (
+                "youtube" in text or
+                "google" in text or
+                "search for" in text or
+                "look up" in text or
+                "navigate to" in text or
+                "scroll" in text or
+                "zoom" in text or
+                "go back" in text or
+                "go forward" in text or
+                "new tab" in text or
+                "close tab" in text or
+                "refresh" in text or
+                "reload" in text or
+                "full screen" in text or
+                "fullscreen" in text or
+                (self.page and "youtube.com" in self.page.url)  # context aware
+        )
+
+        if not is_browser_command:
+            return False  # don't touch browser, let brain handle it
+
+        await self._ensure_browser()  # only launch if actually needed
         text = spoken_text.lower().strip()
 
         # --- GOOGLE SEARCH ---
@@ -80,9 +193,14 @@ class BrowserController:
         if "youtube" in text and not text.startswith("google"):
             await self._ensure_browser()
             query = text.replace("youtube", "").replace("open", "").replace("search", "").strip()
+            print(f"[Browser] YouTube query: '{query}'")
             if query:
                 encoded = urllib.parse.quote_plus(query)
-                await self.page.goto(f"https://www.youtube.com/results?search_query={encoded}")
+                url = f"https://www.youtube.com/results?search_query={encoded}"
+                print(f"[Browser] Navigating to: {url}")
+                await self.page.goto(url)
+                await self.page.wait_for_load_state("domcontentloaded")
+                print(f"[Browser] Current url: {self.page.url}")
             else:
                 await self.page.goto("https://www.youtube.com")
             return True

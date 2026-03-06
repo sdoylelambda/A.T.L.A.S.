@@ -13,15 +13,13 @@ from modules.face import FaceController
 from modules.window_controller import WindowController
 from modules.observer import Observer
 from modules.browser_controller import BrowserController
+from modules.app_launcher import AppLauncher
 
 
 def run_async(face, config):
     async def main():
         window_controller = WindowController()
         observer = Observer(face, window_controller, config)
-        # browser = BrowserController()
-        # await browser.start()
-
         loop = asyncio.get_running_loop()
 
         face.on_cancel = observer._cancel_all

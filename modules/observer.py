@@ -26,7 +26,7 @@ class Observer:
         self.brain = Brain(config)
         self.ears = Ears()  # pass config
         self.mouth = TTSModule(use_mock=config["audio"].get("use_mock", False))
-        self.browser_controller = BrowserController()
+        self.browser_controller = BrowserController(config)
         self.launcher = AppLauncher(window_controller, self.browser_controller)
         self.executor = ToolExecutor(self.launcher, self.browser_controller, self.brain)
         self.stt = HybridSTT(

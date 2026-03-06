@@ -27,3 +27,4 @@ anthropic
 ollama
 google-genai
 python-qt5
+psutil

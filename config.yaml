@@ -37,6 +37,7 @@ llm:
       max_tokens: 500
 
     code:
+      # deepseek-r1 - Deep system analysis
       name: deepseek-coder:6.7b
       # longer context for full code output - bump to 8192 if truncating complex outputs
       num_ctx: 8092
@@ -51,7 +52,7 @@ llm:
       ask_permission: true
     gemini:
       enabled: true
-      # models/gemini-2.5-flash-lite - Smaller
+      # models/gemini-2.5-flash-lite -
       model: gemini-2.5-flash
       ask_permission: true
 
@@ -118,8 +119,15 @@ stt:
   # tiny | base | small | medium | large
   fw_model: small
 
-  # add whisper
-
 system:
   cpu_threads: 6
   use_gpu: false
+
+# DO NOT SHARE THESE
+browser:
+  profile: "jarvis"      # options: stealth, jarvis, firefox
+  chrome_profile_path: "/home/zero/.config/google-chrome/Jarvis"
+  use_chrome: false
+  firefox_profile_path: "/home/zero/.mozilla/firefox/jarvis"
+  use_firefox: true
+#  firefox_executable_path: "/usr/bin/firefox"

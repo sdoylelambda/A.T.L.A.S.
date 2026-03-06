@@ -129,12 +129,26 @@ GUI
     [] - type 'yes' to approve action
 
 Models
+[] - Critic Model
+    [] - Reviews code before execution
+    [] - Flags unsafe shell commands
+[] - Memory Module (Vector DB + embeddings)
+    [] - Remembers previous debugging sessions
+    [] - Remembers architecture decisions
+[] - Self-Evaluator
+    [] - Scores confidence
+    [] - Re-routes if low
+[] - Tool Executor Sandbox
+    [] - Controlled command execution
+    [] - Isolated environment
+[] - Output validator (anti-hallucination critic) - gpt-oss-safeguard
 [] - decide what should determine what model is used. workflow, keywords, task, hybrid, or let AI figure it out
 [] - why does mistral open regular browser? is this what i want? probably better to use play write for voice controls
     [] - should mistral handle that or another model?
         [] - how can it? prompt says it can only write code.
 [] Other models
-    [] - Claude
+    [] - Claude and
+    [] - coding another option - qwen3-coder-next
     [] - analyze images
         [] - screenshot
             [] - text - summarize
@@ -143,6 +157,7 @@ Models
     [] - create image
     [] - analyze PDF/document - give synapsis
     [] - what else
+    [] - eyes - qwen3-vl
 
 Bug Fix
 [] - 1st word or 2 cut off - fix - debug see what is's hearing - probably filtered out. check spike duration
@@ -167,6 +182,9 @@ Integrations
 [] - pycharm/vscode
     [] - line 43 create a function that does x,y,z.
     [] - go
+    [] - review code
+    [] - look for edge cases
+    [] - try and break it
 
 [] - multiple commands
     [] - create stack

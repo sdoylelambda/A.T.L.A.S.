@@ -8,7 +8,7 @@ import urllib.parse
 class AppLauncher:
     def __init__(self, window_controller, browser_controller=None):
         self.window_controller = window_controller
-        self.browser_controller = browser_controller or BrowserController()  # use existing or create new
+        self.browser_controller = browser_controller
         self.current_app = None
         self.apps = {
             "pycharm": {
