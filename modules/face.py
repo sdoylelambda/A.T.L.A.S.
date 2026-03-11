@@ -35,7 +35,7 @@ class FaceController(QMainWindow):
         "thinking": 650,
         "error": 400,
         "sleeping": 150,
-        "speaking": 550,  # slightly more than listening
+        "speaking": 550,
     }
 
     COLOR_VARIATION = {
@@ -46,20 +46,22 @@ class FaceController(QMainWindow):
         "speaking": 0.12,
     }
 
+    # web, moderate brightness
     LINE_SETTINGS = {
         "listening": (0.35, 0.25),
         "thinking": (0.4, 0.35),
         "error": (0.3, 0.4),
         "sleeping": (0.5, 0.1),
-        "speaking": (0.3, 0.3),  # tighter web, moderate brightness
+        "speaking": (0.3, 0.3),
     }
 
+    # fast pulse, moderate depth
     BREATH_SETTINGS = {
         "listening": (0.008, 0.03),
         "thinking": (0.015, 0.05),
         "sleeping": (0.004, 0.08),
         "error": (0.025, 0.04),
-        "speaking": (0.05, 0.06),  # fast pulse, moderate depth
+        "speaking": (0.05, 0.06),
     }
 
     BASE_SIZE = 3
@@ -120,6 +122,9 @@ class FaceController(QMainWindow):
 
         # beam lines
         self.beam_counter = 0
+
+        # transition
+        self.target_n_points = 400
 
         # precompute rotation
         angle = 0.002
@@ -324,18 +329,27 @@ class FaceController(QMainWindow):
             )
 
             # update particle count
-            target_count = self.PARTICLE_COUNTS.get(state, 400)
-            if target_count != self.n_points:
-                self.n_points = target_count
-                self.points = self._generate_points(self.n_points)
-                self.color_offsets = np.random.uniform(-0.1, 0.1, (self.n_points, 4))
-                self.color_offsets[:, 3] = 0
+            self.target_n_points = self.PARTICLE_COUNTS.get(self.current_state, 400)
+            if self.n_points != self.target_n_points:
+                step = 10  # add/remove 10 particles per frame
+                if self.n_points < self.target_n_points:
+                    new_n = min(self.n_points + step, self.target_n_points)
+                    new_pts = self._generate_points(new_n - self.n_points)
+                    self.points = np.vstack([self.points, new_pts])
+                    new_offsets = np.random.uniform(-0.1, 0.1, (new_n - self.n_points, 4))
+                    new_offsets[:, 3] = 0
+                    self.color_offsets = np.vstack([self.color_offsets, new_offsets])
+                else:
+                    new_n = max(self.n_points - step, self.target_n_points)
+                    self.points = self.points[:new_n]
+                    self.color_offsets = self.color_offsets[:new_n]
+                self.n_points = new_n
 
         # smooth color transition
-        self.current_color += (self.target_color - self.current_color) * 0.05
+        self.current_color += (self.target_color - self.current_color) * 0.02
 
         # smooth radius toward target
-        self.current_radius += (self.target_radius - self.current_radius) * 0.05
+        self.current_radius += (self.target_radius - self.current_radius) * 0.03
 
         # breathing — sin wave for perfectly symmetric in/out
         self.breath_phase += self.breath_speed
