@@ -1,4 +1,3 @@
-import asyncio
 import yaml
 import threading
 import sys
@@ -17,8 +16,6 @@ from PyQt5.QtWidgets import QApplication
 from modules.face import FaceController
 from modules.window_controller import WindowController
 from modules.observer import Observer
-from modules.browser_controller import BrowserController
-from modules.app_launcher import AppLauncher
 
 
 def run_async(face, config):
