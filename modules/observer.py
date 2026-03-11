@@ -12,13 +12,13 @@ from modules.browser_controller import BrowserController
 
 class Observer:
     def __init__(self, face_controller, window_controller, config):
+        self.debug = True
         self.face = face_controller
         self.window_controller = window_controller
         self.config = config
         self.paused = False
         self.cancelled = False
         self._processing = False
-        self.debug = True
         self._last_spoken = ""
         self._last_spoken_time = 0
         self._finishing = False
@@ -267,6 +267,8 @@ class Observer:
                 )
                 if audio_bytes:
                     text = self.stt.transcribe(audio_bytes, duration).lower().strip()
+                    if self.debug:
+                        print(f"[STT Raw] '{text}'")  # shows exactly what STT heard before any filtering
                     if any(w in text for w in ["cancel", "stop", "never mind", "forget it"]):
                         print("[Observer] Cancel detected during execution!")
                         self.cancelled = True

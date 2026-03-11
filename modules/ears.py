@@ -26,6 +26,8 @@ class Ears:
 
         # speech confirmation — prevents AC spikes triggering false starts
         self.speech_confirm_chunks = 3
+        self.pre_speech_buffer = []  # holds chunks before speech confirmed
+        self.pre_speech_buffer_max = 5  # keep last 5 chunks before trigger
 
         self.pre_speech_timeout = pre_speech_timeout
         self.max_speech_duration = max_speech_duration
@@ -210,13 +212,21 @@ class Ears:
             if not speech_started:
                 if time.time() - start_time > self.pre_speech_timeout:
                     return None, 0.0
+
+                # always buffer recent chunks — ring buffer
+                self.pre_speech_buffer.append(data)
+                if len(self.pre_speech_buffer) > self.pre_speech_buffer_max:
+                    self.pre_speech_buffer.pop(0)
+
                 if rms >= self.start_threshold:
                     consecutive_loud += 1
                     if consecutive_loud >= self.speech_confirm_chunks:
                         speech_started = True
                         speech_start_time = time.time()
                         self.speaking = True
-                        frames.append(data)
+                        # prepend buffered chunks so first words aren't lost
+                        frames.extend(self.pre_speech_buffer)
+                        self.pre_speech_buffer = []
                 else:
                     consecutive_loud = 0
                 continue
