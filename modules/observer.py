@@ -111,6 +111,7 @@ class Observer:
                     continue
 
                 print(f"[Heard]: {text}")
+                self.face.set_heard(text)
 
                 if self.debug:
                     if self._last_spoken:

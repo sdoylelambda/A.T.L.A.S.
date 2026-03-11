@@ -168,6 +168,11 @@ class FaceController(QMainWindow):
         layout.addWidget(self.state_label)
 
         # captions
+        self.heard_label = QLabel("")
+        self.heard_label.setStyleSheet("color: #4499ff; font-size: 11px;")
+        self.heard_label.setWordWrap(True)
+        self.heard_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.heard_label)
         self.caption_label = QLabel("")
         self.caption_label.setObjectName("caption_label")
         self.caption_label.setAlignment(Qt.AlignCenter)
@@ -234,6 +239,9 @@ class FaceController(QMainWindow):
     def set_caption(self, text: str):
         self.signals.caption_changed.emit(text)
 
+    def set_heard(self, text: str):
+        self.heard_label.setText(f"[Heard]: {text}")
+
     # ── Qt slots ──────────────────────────────────────────────────────────
 
     def _apply_state(self, state: str):
@@ -265,6 +273,7 @@ class FaceController(QMainWindow):
             self.on_cancel()
         self.set_state("listening")
         self.set_caption("")
+        self.heard_label.setText("")
 
     def _handle_mute(self):
         self.muted = not self.muted
