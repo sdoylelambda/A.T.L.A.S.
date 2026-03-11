@@ -65,11 +65,10 @@ All core functionality runs **completely locally** on your machine. No data leav
 - [ ] Playwright system dependencies
   ```bash
   playwright install firefox
-  playwright install-deps
-  and/or then updage config.yaml 'use_chrome: true', 'use_firefox: false'
   playwright install chromium
   playwright install-deps
   ```
+  For Chrome update config.yaml 'use_chrome: true', 'use_firefox: false'
 
 ### Ollama + Local Models
 - [ ] Install Ollama
