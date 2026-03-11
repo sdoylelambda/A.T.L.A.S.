@@ -1,8 +1,12 @@
 import keyring
 import getpass
 import platform
+import yaml
 
-SERVICE_NAME = "J.A.R.V.I.S"
+with open("config.yaml") as f:
+    config = yaml.safe_load(f)
+
+SERVICE_NAME = config.get("personalize", {}).get("ai_assistant_name", "ATLAS")
 
 # Next steps: have these display in the GUI. Implement reset_api_key, delete_api_key and list_stored_keys.
 

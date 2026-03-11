@@ -5,8 +5,13 @@ import sys
 import asyncio
 import os
 
+# load config first so name is available before QApplication
+with open("config.yaml") as f:
+    config = yaml.safe_load(f)
+
 # must be set before QApplication is created
-os.environ["QT_WAYLAND_APPID"] = "jarvis.assistant"
+app_id = config.get("personalize", {}).get("ai_assistant_name", "atlas").lower()
+os.environ["QT_WAYLAND_APPID"] = f"{app_id}.assistant"
 
 from PyQt5.QtWidgets import QApplication
 from modules.face import FaceController

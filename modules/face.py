@@ -1,7 +1,7 @@
 import math
 import numpy as np
-from queue import Queue
 import os
+from queue import Queue
 
 WINDOW_POS_FILE = os.path.join(os.path.dirname(__file__), "..", ".window_pos")
 IS_WAYLAND = os.environ.get("WAYLAND_DISPLAY") is not None
@@ -65,9 +65,10 @@ class FaceController(QMainWindow):
     BASE_SIZE = 3
     BASE_RADIUS = 1.0
 
-    def __init__(self):
+    def __init__(self, config):
         super().__init__()
-        self.setWindowTitle("J.A.R.V.I.S")
+        self.config = config
+        self.setWindowTitle(config['personalize'].get('ai_assistant_name'))
         self.setObjectName("jarvis.assistant")
         self.setMinimumSize(220, 350)
         self.setStyleSheet("""
