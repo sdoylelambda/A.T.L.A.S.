@@ -1,13 +1,21 @@
-# J.A.R.V.I.S
-### Just A Rather Very Intelligent System
+![Python](https://img.shields.io/badge/python-3.11+-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Platform](https://img.shields.io/badge/platform-Linux-orange)
+![Local AI](https://img.shields.io/badge/AI-runs%20locally-brightgreen)
 
-A fully local, voice-controlled AI assistant for Linux. Jarvis listens for voice commands, understands natural language, and can create files, write code, search the web, open applications, and much more — all with near-instant response for simple commands and intelligent escalation to more powerful models for complex tasks.
+# A.T.L.A.S.
+### Autonomous Task and Local AI System
+
+A fully local, voice-controlled AI assistant for Linux — inspired by the AI assistants 
+of science fiction, built for the real world. Runs completely on your own hardware with 
+no data leaving your machine by default. Optionally connects to Claude and Gemini APIs 
+for long-context reasoning and real-time information — always with your explicit permission.
 
 ---
 
 ## Overview
 
-Jarvis is built around a layered intelligence architecture:
+Atlas is built around a layered intelligence architecture:
 
 1. **Fast keyword layer** — instant response for known commands (open apps, wake words, pause)
 2. **phi3:mini** — handles simple conversational questions directly, escalates everything else
@@ -16,6 +24,15 @@ Jarvis is built around a layered intelligence architecture:
 5. **Cloud APIs** — Claude and Gemini available for long-context reasoning and real-time information (opt-in, permission required)
 
 All core functionality runs **completely locally** on your machine. No data leaves your computer unless you explicitly approve it.
+
+---
+
+## Why Atlas?
+
+Most voice assistants send your data to the cloud. Atlas runs entirely 
+on your hardware — your conversations, your files, your code never leave 
+your machine. Cloud models are available but always opt-in and always 
+announced before use.
 
 ---
 
@@ -151,9 +168,9 @@ All core functionality runs **completely locally** on your machine. No data leav
   .window_pos
   ```
   ### Browser Profile (First Run)
-Jarvis creates a persistent browser profile automatically on first use.
+Atlas creates a persistent browser profile automatically on first use.
 When you say your first browser command, a Firefox window will open.
-Log into YouTube, Gmail, or any sites you want Jarvis to access.
+Log into YouTube, Gmail, or any sites you want Atlas to access.
 Your session is saved — you won't be asked again.
 
 To use Chrome instead, update config.yaml:
@@ -161,7 +178,7 @@ To use Chrome instead, update config.yaml:
 browser:
   use_chrome: true
   use_firefox: false
-  chrome_profile_path: "/home/YOUR_USER/.config/google-chrome/Jarvis"
+  chrome_profile_path: "/home/YOUR_USER/.config/google-chrome/Atlas"
 ```
 
 ---
@@ -169,12 +186,12 @@ browser:
 ## Project Structure
 
 ```
-J.A.R.V.I.S/
+A.T.L.A.S/
 ├── main.py                  # Entry point — PyQt5 app + async Observer thread
 ├── config.yaml              # Your local config (gitignored)
 ├── config.example.yaml      # Template config to share
 ├── custom_exceptions.py     # PermissionRequired, ModelUnavailable, PlanExecutionError
-├── workspace/               # Where Jarvis creates files (gitignored)
+├── workspace/               # Where Atlas creates files (gitignored)
 ├── modules/
 │   ├── observer.py          # Main loop — listens, routes, responds, command queue
 │   ├── brain.py             # LLM routing and plan generation
@@ -297,7 +314,7 @@ permissions:
 # ---- Logging ----
 logging:
   level: "INFO"
-  file: "./logs/jarvis.log"
+  file: "./logs/atlas.log"
 
 # ---- Development ----
 dev:
@@ -319,23 +336,23 @@ system:
   use_gpu: false
 
 browser:
-  profile: "jarvis"
-  chrome_profile_path: "/home/{user}/.config/google-chrome/jarvis"
+  profile: "atlas"
+  chrome_profile_path: "/home/{user}/.config/google-chrome/atlas"
   use_chrome: false
-  firefox_profile_path: "/home/{user}/.mozilla/firefox/jarvis"
+  firefox_profile_path: "/home/{user}/.mozilla/firefox/atlas"
   use_firefox: true
 ```
 
 ---
 
-## Running Jarvis
+## Running Atlas
 
 ```bash
 source .venv/bin/activate
 python main.py
 ```
 
-Jarvis will calibrate the microphone noise floor, open the GUI, then say **"Hello sir, what can I do for you"** when ready.
+Atlas will calibrate the microphone noise floor, open the GUI, then say **"Hello sir, what can I do for you"** when ready.
 
 ---
 
@@ -355,7 +372,7 @@ The GUI is a PyQt5 window with a vispy 3D particle orb embedded above a control 
 The orb features per-particle color variation, depth-based size variation, and beam line connections between nearby particles for a holographic look. Each state has distinct particle density, breathing speed, and connection density.
 
 ### Caption Area
-Displays real-time status as Jarvis works:
+Displays real-time status as Atlas works:
 ```
 classifying...
 planning...
@@ -363,7 +380,7 @@ step 1 of 3: create_dir...
 step 2 of 3: generate_code...
 waiting for confirmation...
 ```
-Shows spoken text when Jarvis is speaking, clears automatically after.
+Shows spoken text when Atlas is speaking, clears automatically after.
 
 ### Controls
 | Control | Function |
@@ -384,7 +401,7 @@ Shows spoken text when Jarvis is speaking, clears automatically after.
 ### Wake / Sleep
 | Say | Result |
 |-----|--------|
-| `Jarvis` or `you there` | Wake from sleep |
+| `Atlas` or `you there` | Wake from sleep |
 | `take a break` or `pause` | Go to sleep |
 
 ### Cancel / Confirm
@@ -447,7 +464,7 @@ Shows spoken text when Jarvis is speaking, clears automatically after.
 |-----|--------|
 | `what's the capital of France` | Instant answer via phi3 |
 | `tell me a joke` | Dry British wit |
-| `how are you today` | Jarvis responds in character |
+| `how are you today` | Atlas responds in character |
 
 ---
 
@@ -484,7 +501,7 @@ ToolExecutor
 
 ## Command Queue
 
-Jarvis processes commands concurrently — voice keeps listening while Brain is working. Say a second command while Jarvis is executing the first and it will be queued and processed immediately after.
+Atlas processes commands concurrently — voice keeps listening while Brain is working. Say a second command while Atlas is executing the first and it will be queued and processed immediately after.
 
 ```
 "create a flask app"  →  Brain starts working
@@ -512,7 +529,7 @@ Mistral's context window scales automatically based on command complexity:
 
 ## Noise Floor Calibration
 
-Jarvis automatically calibrates microphone thresholds at startup and every 20 seconds:
+Atlas automatically calibrates microphone thresholds at startup and every 20 seconds:
 
 - Uses the **95th percentile** of samples — handles AC/fan spikes better than mean
 - Dynamically sets `start_threshold` and `stop_threshold` based on your environment
@@ -526,7 +543,7 @@ Jarvis automatically calibrates microphone thresholds at startup and every 20 se
 
 ## Plan → Confirm → Execute
 
-For any command that involves executing steps, Jarvis will:
+For any command that involves executing steps, Atlas will:
 
 1. **Speak the plan** — "Creating flask folder with backend.py inside."
 2. **Ask for confirmation** — "Shall I proceed, sir?"
@@ -534,9 +551,9 @@ For any command that involves executing steps, Jarvis will:
 4. **Execute** — runs each step, updates GUI caption with live progress, checks for cancel between steps
 5. **Report** — "Done, sir. Code written to workspace/backend.py"
 
-**File exists?** Jarvis says "backend.py already exists, sir. Say overwrite to replace it." Say overwrite/replace/yes to proceed or anything else to keep the existing file.
+**File exists?** Atlas says "backend.py already exists, sir. Say overwrite to replace it." Say overwrite/replace/yes to proceed or anything else to keep the existing file.
 
-**Slow response?** If Brain takes more than 5 seconds, Jarvis says "One moment please, sir." and continues working.
+**Slow response?** If Brain takes more than 5 seconds, Atlas says "One moment please, sir." and continues working.
 
 ---
 
@@ -577,21 +594,32 @@ For any command that involves executing steps, Jarvis will:
 - [x] ALSA stream recovery with exponential backoff
 - [x] Stream lock preventing concurrent mic access crashes (SIGABRT/SIGSEGV)
 - [x] DeepSeek explanation stripper — fluff auto-commented at bottom of file
+- [x] Gemini API routing
 
 ### Planned
-- [ ] Claude / Gemini API routing
+- [ ] Claude API routing
 - [ ] Self-expanding fast keyword layer
 - [ ] RAG over local notes and files
+- [ ] Summerize PDF
+- [ ] Summerize screenshot
+- [ ] Research topic 
 - [ ] Screen / vision support (LLaVA)
 - [ ] Android client over SSH
 - [ ] Persistent memory and user preferences
 - [ ] Push-to-talk mode
+- [ ] Camera integration to view and assess real scenarios
+- [ ] Gmail integration and control
+- [ ] Calendar integration and control
+- [ ] Slack alerts
+- [ ] Text alerts
+- [ ] Follow-up commands
+- [ ] n8n integration
 
 ---
 
 ## Troubleshooting
 
-**Jarvis mishears commands**
+**Atlas mishears commands**
 - Speak clearly and at a moderate pace
 - For file extensions say "dot p y" not "dot py"
 - Consider upgrading Whisper model from `small` to `medium` in config
@@ -634,7 +662,7 @@ For any command that involves executing steps, Jarvis will:
 - If still occurring, increase manually in config
 
 **"Shall I proceed" confirmation not heard**
-- Ears resumes after TTS — speak clearly after Jarvis finishes asking
+- Ears resumes after TTS — speak clearly after Atlas finishes asking
 - If misheard, it will cancel — just repeat the command
 
 **GUI window position not saving**
@@ -684,7 +712,7 @@ pytest tests/ --cov=modules --cov-report=term-missing
 
 - All processing is **local by default** — nothing leaves your machine
 - Cloud API calls (Claude, Gemini) are **disabled by default**
-- When enabled, Jarvis **asks permission before every API call**
+- When enabled, Atlas **asks permission before every API call**
 - Anthropic and Google do not use API calls to train their models by default
 
 ---

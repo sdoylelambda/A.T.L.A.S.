@@ -35,3 +35,6 @@ workspace/
 
 # Remember face location
 .window_pos
+
+# Demo screenshots
+screenshots/
