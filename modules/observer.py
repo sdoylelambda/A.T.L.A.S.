@@ -1,5 +1,6 @@
 import time
 import asyncio
+
 from modules.ears import Ears
 from modules.stt.hybrid_stt import HybridSTT
 from modules.tts import TTSModule
@@ -8,6 +9,7 @@ from modules.brain import Brain
 from custom_exceptions import PermissionRequired, ModelUnavailable, PlanExecutionError
 from modules.tool_executor import ToolExecutor
 from modules.browser_controller import BrowserController
+from modules.utils import timer
 
 
 class Observer:

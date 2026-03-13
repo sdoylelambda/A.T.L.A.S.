@@ -8,6 +8,7 @@ from config.api_keys import get_api_key
 from anthropic.types import MessageParam
 from google import genai
 from custom_exceptions import PermissionRequired, ModelUnavailable
+from utils import timer
 
 
 
@@ -73,10 +74,11 @@ class Brain:
                 raise PermissionRequired("gemini", prompt)
             gemini_api_key = get_api_key("gemini")
             client = genai.Client(api_key=gemini_api_key)
-            response = client.models.generate_content(
-                model=cfg["model"],
-                contents=prompt
-            )
+            with timer("Gemini", self.debug):
+                response = client.models.generate_content(
+                    model=cfg["model"],
+                    contents=prompt
+                )
             # strip markdown before returning
             import re
             text = response.text
@@ -276,14 +278,16 @@ class Brain:
         3. API models as last resort
         """
         # layer 1 — phi3 quick answer
-        result = self.quick_answer(command)
+        with timer("phi3", self.debug):
+            result = self.quick_answer(command)
         if result:
             print("[Brain] Handled by phi3")
             return result
 
         # layer 2 — mistral full plan
         print("[Brain] Escalating to Mistral")
-        plan = self.create_plan(command)
+        with timer("Mistral", self.debug):
+            plan = self.create_plan(command)
 
         # layer 3 — api escalation if mistral flags it
         route = plan.get("route")
