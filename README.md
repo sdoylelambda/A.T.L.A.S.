@@ -600,8 +600,8 @@ For any command that involves executing steps, Atlas will:
 - [ ] Claude API routing
 - [ ] Self-expanding fast keyword layer
 - [ ] RAG over local notes and files
-- [ ] Summerize PDF
-- [ ] Summerize screenshot
+- [ ] Summarize PDF
+- [ ] Summarize screenshot
 - [ ] Research topic 
 - [ ] Screen / vision support (LLaVA)
 - [ ] Android client over SSH

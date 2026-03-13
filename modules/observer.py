@@ -1,5 +1,6 @@
 import time
 import asyncio
+
 from modules.ears import Ears
 from modules.stt.hybrid_stt import HybridSTT
 from modules.tts import TTSModule
@@ -8,6 +9,7 @@ from modules.brain import Brain
 from custom_exceptions import PermissionRequired, ModelUnavailable, PlanExecutionError
 from modules.tool_executor import ToolExecutor
 from modules.browser_controller import BrowserController
+from modules.utils import timer
 
 
 class Observer:
@@ -64,9 +66,8 @@ class Observer:
                     continue
 
                 # 🧠 STT
-                t0 = time.time()
-                text = self.stt.transcribe(audio_bytes, duration)
-                print(f"[Timing] STT: {time.time() - t0:.2f}s")
+                with timer("STT", self.debug):
+                    text = self.stt.transcribe(audio_bytes, duration)
 
                 if not text:
                     continue
@@ -133,10 +134,8 @@ class Observer:
                     if self.paused:
                         self.paused = False
                         self.face.set_state("thinking")
-                        t1 = time.time()
-                        await self.say("For you sir, always.")
-                        if self.debug:
-                            print(f"[Timing] TTS: {time.time() - t1:.2f}s")
+                        with timer("TTS wake", self.debug):
+                            await self.say("For you sir, always.")
                         self.face.set_state("listening")
                     continue
 
@@ -144,10 +143,8 @@ class Observer:
                 if any(phrase in text for phrase in ["take a break", "break", "stop listening", "go to sleep"]):
                     self.paused = True
                     self.face.set_state("sleeping")
-                    t1 = time.time()
-                    await self.say("Going on a break.")
-                    if self.debug:
-                        print(f"[Timing] TTS: {time.time() - t1:.2f}s")
+                    with timer("TTS sleep", self.debug):
+                        await self.say("Going on a break.")
                     continue
 
                 if self.paused:
@@ -162,18 +159,14 @@ class Observer:
                     handled = False
 
                 # 🔊 TTS response
-                t1 = time.time()
-                if handled:
-                    current_app = self.launcher.get_current_app()
-                    if current_app and current_app != "browser":
-                        self.window_controller.update_active_window(current_app)
-                    await self.say(f"I have: {text}")
-                else:
-                    # fallthrough to brain instead of failing
-                    await self.handle_brain_command(text)
-
-                if self.debug:
-                    print(f"[Timing] TTS: {time.time() - t1:.2f}s")
+                with timer("Total command", self.debug):
+                    if handled:
+                        current_app = self.launcher.get_current_app()
+                        if current_app and current_app != "browser":
+                            self.window_controller.update_active_window(current_app)
+                        await self.say(f"I have: {text}")
+                    else:
+                        await self.handle_brain_command(text)
 
                 if not self._processing:
                     self.face.set_state("listening")
@@ -443,7 +436,8 @@ class Observer:
         self._last_spoken_time = time.time()
         self.face.set_caption(text)  # ← show in GUI
         self.face.set_state("speaking")
-        await self.mouth.speak(text)
+        with timer("TTS", self.debug):
+            await self.mouth.speak(text)
         self.face.set_state(next_state or ("thinking" if self._processing else "listening"))        # check if canceled during speech
         if self.cancelled:
             self.ears.paused = False
