@@ -598,6 +598,7 @@ For any command that involves executing steps, Atlas will:
 - [x] Gemini API routing
 
 ### Planned
+- [ ] Calendar integration and control
 - [ ] Claude API routing
 - [ ] Self-expanding fast keyword layer
 - [ ] RAG over local notes and files
@@ -610,11 +611,11 @@ For any command that involves executing steps, Atlas will:
 - [ ] Push-to-talk mode
 - [ ] Camera integration to view and assess real scenarios
 - [ ] Gmail integration and control
-- [ ] Calendar integration and control
 - [ ] Slack alerts
 - [ ] Text alerts
 - [ ] Follow-up commands
 - [ ] n8n integration
+- [ ] Function Calling with Function Gemma - live data; weather, stock prices, etc.
 
 ---
 
