@@ -51,7 +51,6 @@ class Observer:
         except asyncio.TimeoutError:
             pass
 
-        # now thresholds are set — safe to start
         print("[Observer] Listening and responding...")
         asyncio.create_task(self.ears.auto_calibrate(interval=30))
         await self.say("Hello sir, what can I do for you.")
@@ -156,6 +155,13 @@ class Observer:
                     continue
 
                 if self.paused:
+                    continue
+
+                if any(phrase in text for phrase in [
+                    "what can you do", "what are you capable of",
+                    "help", "capabilities", "what do you know"
+                ]):
+                    await self.say(self._build_capabilities(), next_state="listening")
                     continue
 
                 # 🚀 Command handling
@@ -497,3 +503,32 @@ class Observer:
         self._pending_key = key.strip()
         self._key_event.set()
 
+    def _build_capabilities(self) -> str:
+        core = (
+            "Quite a few things, sir. "
+            "I can answer questions, tell jokes, and hold a conversation. "
+            "I can open applications, control your browser, search the web, and navigate pages. "
+            "I can create files and folders, and generate code in Python, JavaScript, HTML, and more. "
+            "I can read files, run scripts, and manage your workspace. "
+        )
+
+        api_caps = []
+        if self.brain.api_models.get("gemini", {}).get("enabled"):
+            api_caps.append("Gemini for real-time information and long document analysis")
+        if self.brain.api_models.get("claude", {}).get("enabled"):
+            api_caps.append("Claude for complex reasoning and large codebases")
+
+        if api_caps:
+            core += f"I also have access to {' and '.join(api_caps)}. "
+
+        integration_caps = []
+        if self.config.get("integrations", {}).get("google_calendar", {}).get("enabled"):
+            integration_caps.append("check and manage your calendar")
+        if self.config.get("integrations", {}).get("gmail", {}).get("enabled"):
+            integration_caps.append("read and send emails via Gmail")
+
+        if integration_caps:
+            core += f"I can also {' and '.join(integration_caps)}. "
+
+        core += "What would you like me to do, sir?"
+        return core

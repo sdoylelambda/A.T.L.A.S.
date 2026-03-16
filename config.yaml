@@ -64,6 +64,12 @@ llm:
 
   # legacy/unused for now
   model_path: "./models/mpt-7b/"
+# ---- Integrations ----
+integrations:
+  google_calendar:
+    enabled: false
+  gmail:
+    enabled: false
 
 # ---- Memory ----
 memory:
