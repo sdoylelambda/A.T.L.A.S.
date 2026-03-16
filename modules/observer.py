@@ -1,15 +1,17 @@
 import time
 import asyncio
+import threading
 
 from modules.ears import Ears
 from modules.stt.hybrid_stt import HybridSTT
 from modules.tts import TTSModule
 from modules.app_launcher import AppLauncher
 from modules.brain import Brain
-from custom_exceptions import PermissionRequired, ModelUnavailable, PlanExecutionError
 from modules.tool_executor import ToolExecutor
 from modules.browser_controller import BrowserController
 from modules.utils import timer
+from config.api_keys import get_api_key, set_key_request_callback
+from custom_exceptions import PermissionRequired, ModelUnavailable, PlanExecutionError
 
 
 class Observer:
@@ -24,6 +26,10 @@ class Observer:
         self._last_spoken = ""
         self._last_spoken_time = 0
         self._finishing = False
+        self._key_event = threading.Event()
+        self._pending_key = None
+        self._waiting_for_key = False
+        set_key_request_callback(self._request_key_via_gui)
 
         self.brain = Brain(config)
         self.ears = Ears()  # pass config
@@ -290,6 +296,7 @@ class Observer:
 
         audio_bytes, duration = await self.ears.listen()
         response = self.stt.transcribe(audio_bytes, duration).lower().strip() if audio_bytes else ""
+        print(f"[Heard] {response}")
 
         confirmed = any(w in response for w in [
             "yes", "yeah", "yep", "do", "it", "proceed",
@@ -467,3 +474,24 @@ class Observer:
         self.ears.paused = False
         self.face.set_state("listening")
         print("[Observer] Cancelled via GUI")
+
+    def _request_key_via_gui(self, provider: str) -> str:
+        """Called from brain thread — pauses until GUI provides key."""
+        self._pending_key = None
+        self._waiting_for_key = True
+        self._key_event.clear()
+        print(f"[APIKeys] Waiting for key input in GUI for {provider}")
+        self.face.set_caption(f"{provider} API key required — type in text box and press Send")
+        self.face.set_state("thinking")
+        self._key_event.wait(timeout=120)
+        print(f"[APIKeys] Got key: {bool(self._pending_key)}")
+        self._waiting_for_key = False
+        if not self._pending_key:
+            raise ValueError(f"No API key provided for {provider}")
+        return self._pending_key
+
+    def _provide_key(self, key: str):
+        """Called from GUI text input when in key-request mode."""
+        self._pending_key = key.strip()
+        self._key_event.set()
+

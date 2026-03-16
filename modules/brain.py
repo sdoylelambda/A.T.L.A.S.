@@ -9,6 +9,7 @@ from anthropic.types import MessageParam
 from google import genai
 from custom_exceptions import PermissionRequired, ModelUnavailable
 from modules.utils import timer
+from config.api_keys import get_api_key
 
 
 class Brain:
@@ -16,6 +17,7 @@ class Brain:
         self.config = config["llm"]
         self.models = self.config["models"]
         self.api_models = self.config["api_models"]
+        self._gemini_client = None
 
         # FAISS memory (step 11 - RAG, stubbed for now)
         self.vector_db = faiss.IndexFlatL2(384)
@@ -71,12 +73,29 @@ class Brain:
                 raise ModelUnavailable("gemini")
             if cfg.get("ask_permission", True):
                 raise PermissionRequired("gemini", prompt)
+
             gemini_api_key = get_api_key("gemini")
-            client = genai.Client(api_key=gemini_api_key)
-            response = client.models.generate_content(
-                model=cfg["model"],
-                contents=prompt
-            )
+
+            if not self._gemini_client:
+                self._gemini_client = genai.Client(api_key=gemini_api_key)
+
+            try:
+                with timer("Gemini", self.debug):
+                    response = self._gemini_client.models.generate_content(
+                        model=cfg["model"],
+                        contents=prompt
+                    )
+            except Exception as e:
+                if "API key" in str(e):
+                    # key was just stored — rebuild client and retry once
+                    print("[Brain] Rebuilding Gemini client with new key")
+                    self._gemini_client = genai.Client(api_key=get_api_key("gemini"))
+                    response = self._gemini_client.models.generate_content(
+                        model=cfg["model"],
+                        contents=prompt
+                    )
+                else:
+                    raise
             # strip markdown before returning
             import re
             text = response.text

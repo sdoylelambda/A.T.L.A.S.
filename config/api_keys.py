@@ -8,7 +8,15 @@ with open("config.yaml") as f:
 
 SERVICE_NAME = config.get("personalize", {}).get("ai_assistant_name", "ATLAS")
 
-# Next steps: have these display in the GUI. Implement reset_api_key, delete_api_key and list_stored_keys.
+# Next steps: Implement reset_api_key, delete_api_key and list_stored_keys.
+
+
+_key_request_callback = None
+
+def set_key_request_callback(callback):
+    """Set by GUI on startup to handle key requests visually."""
+    global _key_request_callback
+    _key_request_callback = callback
 
 
 def get_api_key(provider: str) -> str:
@@ -18,19 +26,24 @@ def get_api_key(provider: str) -> str:
     """
     provider = provider.lower().strip()
     key = keyring.get_password(SERVICE_NAME, provider)
+    print(f"[APIKeys] SERVICE_NAME={SERVICE_NAME} provider={provider} key_found={bool(key)}")
+    print(f"[APIKeys] callback={_key_request_callback}")
 
     if key:
         return key
 
-    print(f"\nNo API key found for '{provider}'.")
-    key = getpass.getpass(f"Enter your {provider} API key (input hidden): ").strip()
+    # use GUI callback if available, else fall back to terminal
+    if _key_request_callback:
+        key = _key_request_callback(provider)
+    else:
+        print(f"\nNo API key found for '{provider}'.")
+        key = getpass.getpass(f"Enter your {provider} API key (input hidden): ").strip()
 
     if not key:
         raise ValueError("No API key provided.")
 
     keyring.set_password(SERVICE_NAME, provider, key)
-    print(f"✓ Stored securely in {platform.system()} keyring.\n")
-
+    print(f"✓ {provider} API key stored securely.")
     return key
 
 
