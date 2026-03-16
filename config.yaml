@@ -1,6 +1,8 @@
 # ---- Personalize ----
 personalize:
   ai_assistant_name: "A.T.L.A.S."
+  # response_name: 'sir' -- allow use to change to 'ma'am', 'john', 'jane', etc.
+  # home_city: "New York"  -- for what's the weather and local based responses
 
 # ---- Node identity ----
 node:
