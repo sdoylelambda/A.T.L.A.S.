@@ -99,14 +99,14 @@ audio:
 transcription:
   engine: faster-whisper
 
-  # ---- Voice ----
-  tts:
-    # mock TTS
-    enabled: false
-    engine: "coqui"
-    voice: "default"
+# ---- Voice ----
+tts:
+  # mock TTS
+  enabled: false
+  engine: "coqui"
+  voice: "default"
 
-  # ---- Speech ----
+# ---- Speech ----
 stt:
   language: en
   # Length of message that can be heard in seconds
@@ -115,6 +115,15 @@ stt:
   whisper_model: small
   # tiny | base | small | medium | large
   fw_model: small
+
+# ---- Camera vision ----
+vision:
+  enabled: true
+  camera_index: 0
+  model: llava
+  max_storage_mb: 250
+  resolution_width: 1920
+  resolution_height: 1080
 
 # ---- Execution permissions ----
 permissions:
@@ -137,7 +146,7 @@ dev:
 # ---- Device ----
 system:
   cpu_threads: 6
-  use_gpu: false
+  use_gpu: true
 
 # ---- Browser ----
 browser:
