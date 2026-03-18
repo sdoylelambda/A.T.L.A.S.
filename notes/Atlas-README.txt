@@ -1,4 +1,4 @@
-# J.A.R.V.I.S
+# A.T.L.A.S.
 An AI assistant based on Iron Man's J.A.R.V.I.S.
 
 # Setup
@@ -40,7 +40,7 @@ Cell phone sends plan accepted message to Primary Computer.
 Primary Computer sends plan to work station.
 Work station opens Pycharm, creates project. Sends screenshot to cell phone.
 User views screenshot on cellphone then says run it.
-Project runs on secondary computer. (Reduces load on primary computer, periphals, monitor, etc - Primary computer free to function as normal without interference.)
+Project runs on secondary computer. (Reduces load on primary computer, peripherals, monitor, etc - Primary computer free to function as normal without interference.)
 
 
 Claude joint plan
@@ -69,22 +69,6 @@ React/Flutter GUI — full web-based interface with richer animations
 Voice training — tune STT to your specific voice
 
 
-
-i think this was already part of the plan but i want to discuss a little.
-
-i want Jarvis to be able to remember conversations. so maybe create a md file for each conversation/project so he can
-remember context and learn/grow.
-
-it seems like i had Jarvis do a web search for time zones that it then read me the answer. how to have him always read
-the answer, not just pull up a browser that has the answer?
-
-Jarvis makes responses code always. if no code or file creation is in the request prompt, i want just an answer, not a
-file with the answer.
-
-
-
-
-
 [x] - GUI update
     [] - ui button to proceed - build it
     [x] - speaking face color
@@ -98,8 +82,8 @@ file with the answer.
     [] - General question escalation AI
     [] - Write email/paper/pdf AI
 [] - fix broken tests
-[] - ask what can you do? get response
-    [] - say hello -> i'm jarvis...
+[x] - ask what can you do? get response
+    [x] - say hello -> i'm jarvis...
 [] - config linux/mac/windows versions
 [] - top level debug? or keep per file?
 [] - research {topic}
@@ -124,7 +108,7 @@ Context
     [] - create a new project called lead gen. make a md file for plan. execute step 1. or execute all steps in order
 
 GUI
-[] - more beams on all expressions - add till it's too much, then turn it down a little
+[x] - more beams on all expressions - add till it's too much, then turn it down a little
 [] - approve action button
     [] - type 'yes' to approve action
 
@@ -160,16 +144,16 @@ Models
     [] - eyes - qwen3-vl
 
 Bug Fix
-[] - 1st word or 2 cut off - fix - debug see what is's hearing - probably filtered out. check spike duration
-    [] confirm action - maybe say - confirm, please, proceed
+[x] - 1st word or 2 cut off - fix - debug see what is's hearing - probably filtered out. check spike duration
+    [x] confirm action - maybe say - confirm, please, proceed
 [] - YouTube {a song} command seems to not let music play more than a few seconds. why? playwrite not playing nice?
     [] - why does google YouTube {song} work fine and not YouTube {song}
 
 Integrations
 [] - n8n integration
-[] - calendar integration
-    [] - what do i have today?
-    [] - add event
+[x] - calendar integration
+    [x] - what do i have today?
+    [x] - add event
     [] - timer --- remind me this 30 minutes to do something
     [] - speak calendar alerts
 [] - send gmail
