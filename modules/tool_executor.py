@@ -10,7 +10,7 @@ class ToolExecutor:
         self.launcher = app_launcher  # reuse existing launcher, don't duplicate
         self.browser = browser_controller
         self.brain = brain
-        self.workspace = Path("workspace")  # location projects created by Jarvis are stored.
+        self.workspace = Path("workspace")  # location projects created by Atlas are stored.
         self.workspace.mkdir(exist_ok=True)  # create on first run, safe if already exists
 
         self.tools = {
@@ -36,7 +36,7 @@ class ToolExecutor:
     async def execute_plan(self, plan: dict, cancelled=None, on_step=None) -> list[str]:
         """
         Execute all steps in a plan.
-        Returns list of result strings for Jarvis to speak.
+        Returns list of result strings for Atlas to speak.
         """
         results = []
         steps = plan.get("steps", [])

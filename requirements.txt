@@ -24,3 +24,4 @@ psutil
 keyring
 ffmpeg-python
 piper-tts
+prompt-toolkit

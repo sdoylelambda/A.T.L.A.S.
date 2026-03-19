@@ -96,7 +96,7 @@ class BrowserController:
         if self.debug:
             for proc in psutil.process_iter(['name']):
                 if proc.info['name'] and running_name in proc.info['name'].lower():
-                    print(f"[Browser] ⚠️  {browser_type} is running — please close it, then restart Jarvis.")
+                    print(f"[Browser] ⚠️  {browser_type} is running — please close it, then restart Atlas.")
                     input("Press Enter once closed...")
                     break
 

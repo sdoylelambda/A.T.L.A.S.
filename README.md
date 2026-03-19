@@ -20,6 +20,15 @@ on your hardware — your conversations, your files, your code never leave
 your machine. Cloud models are available but always opt-in and always 
 announced before use.
 
+Atlas can answer questions, tell jokes, and hold a conversation.
+Atlas can open applications, control your browser, search the web, and navigate pages.
+Atlas can create files and folders, and generate code in Python, JavaScript, HTML, and more.
+Atlas can read files, run scripts, and manage your workspace.
+Atlas also has vision through your webcam — able to see what’s in front of it, identify objects,
+read text, and answer questions about what it sees. Atlas has access to Gemini for real-time information
+and Claude for long document analysis. It can also check and manage your calendar. You can even use Atlas
+on the go with your Android device!
+
 ---
 
 ## GUI
@@ -122,6 +131,7 @@ All core functionality runs **completely locally** on your machine. No data leav
 - [x] Camera integration to view and assess real scenarios
 - [x] Screen / vision support (LLaVA)
 - [x] Config-driven GUI colors — border, background, text, buttons all configurable via config.yaml
+- [x] Android SSH access via Termux
 
 ### Planned
 - [ ] Add way user wants to be addressed to config.yaml (sir, ma'am, John, Jane, etc.)
@@ -130,9 +140,9 @@ All core functionality runs **completely locally** on your machine. No data leav
 - [ ] Summarize PDF
 - [ ] Summarize screenshot
 - [ ] Research topic 
-- [ ] Android client over SSH
-- [ ] FastAPI server
-- [ ] Flutter app - Mobile use for Android and iOS
+- [ ] FastAPI server — REST/WebSocket interface for mobile clients
+- [ ] Flutter app - Mobile use for Android and iOS - native phone mic, speakers, camera
+  - [ ] Phone camera integration via IP Webcam app
 - [ ] Persistent memory and user preferences
 - [ ] Push-to-talk mode
 - [ ] Gmail integration and control
@@ -328,6 +338,8 @@ Credentials and token are stored outside the project:
 ~/.config/atlas/google_calendar_token.json        ← created automatically on first login
 ```
 
+---
+
 ### Vision (Eyes)
 | Say | Result |
 |-----|--------|
@@ -355,7 +367,71 @@ ollama pull llava
 pip install opencv-python
 ```
 
-### GUI Customization
+---
+
+## Remote Access (SSH)
+
+Atlas can run headlessly over SSH — useful for Android phones, tablets, or any remote terminal.
+```bash
+python main.py --no-gui
+```
+
+### Features
+- Text input loop with clean `>>` prompt — output never breaks your input line
+- Voice still active via desktop mic and speakers
+- State and caption printed to terminal instead of GUI
+- PyQt5 not imported — no display required
+- Type `exit`, `quit`, or `q` to stop
+
+## Android Setup
+1. Install **Termux** from F-Droid (not Play Store — Play Store version is outdated)
+2. Install **Tailscale** on both phone and desktop for access anywhere
+3. In Termux:
+```bash
+pkg update
+pkg install openssh
+ssh your_username@your_tailscale_ip -p 22
+cd ~/dev/A.T.L.A.S.
+source .venv/bin/activate
+python main.py --no-gui
+```
+
+### Tailscale Setup (access from anywhere)
+#### On desktop:
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+tailscale ip  # note this IP for SSH
+```
+
+#### On phone:
+
+```
+Install Tailscale from Play Store
+Sign in with same account
+Enable the VPN when prompted
+
+Install Tailscale from Play Store on phone, sign in with same account.
+Works from any network — WiFi, cellular, anywhere with data.
+```
+
+#### Text Input
+
+```
+
+>> what do I have today
+[Atlas] Massage at 2:30 PM, sir.
+>> create a flask app
+[Atlas] classifying...
+[Atlas] Creating flask app with common endpoints.
+[Atlas] Project created to projects/flask.py
+>> exit
+Disconnects SSH connection and shuts down Atlas
+```
+
+---
+
+### GUI Customization for Desktop
 
 Atlas's name and all GUI colors are configurable in `config.yaml` — no code changes needed.
 ```yaml

@@ -1,4 +1,4 @@
-# Jarvis Feature Priority Roadmap
+# Atlas Feature Priority Roadmap
 ### Scored by Reward ÷ Time (highest first)
 
 > **Reward** = resume value + daily usefulness + impressiveness  
