@@ -7,12 +7,12 @@ This is a **Non-Code Project** directory containing strategic notes, setup instr
 
 ## Key Files
 - **README.md**: The primary documentation file. It details the project's layered architecture (Fast Keyword -> phi3:mini -> Mistral -> DeepSeek), system requirements, setup checklist, and voice command reference.
-- **Jarvis-README.txt**: A secondary reference containing setup instructions for Wayland/X11, MVP goals, stretch goals, and a detailed list of planned features and integrations (e.g., n8n, calendar, Gmail).
+- **Atlas-README.txt**: A secondary reference containing setup instructions for Wayland/X11, MVP goals, stretch goals, and a detailed list of planned features and integrations (e.g., n8n, calendar, Gmail).
 - **errors.txt**: A simple log file for tracking current bugs or performance issues (e.g., UI latency during cancellations).
 - **Jarvis_Build_AI_Checklist.docx**: A binary document containing a checklist for building or configuring the AI components.
 - **GEMINI.md**: This file, providing instructional context for AI interactions within this directory.
 
-## J.A.R.V.I.S Architecture Summary
+## A.T.L.A.S. Architecture Summary
 While this folder contains documentation, it refers to a system with the following architecture:
 - **Speech-to-Text (STT)**: Whisper + Faster-Whisper.
 - **Classifier**: phi3:mini (fast local model for simple tasks).
@@ -23,10 +23,10 @@ While this folder contains documentation, it refers to a system with the followi
 
 ## Usage
 The contents of this directory should be used to:
-1.  **Reference Project Goals**: Check `README.md` or `Jarvis-README.txt` for the current MVP status and planned features.
+1.  **Reference Project Goals**: Check `README.md` or `Atlas-README.txt` for the current MVP status and planned features.
 2.  **Troubleshoot Setup**: Refer to the "Setup Checklist" and "Troubleshooting" sections in `README.md`.
 3.  **Refine AI Behavior**: Use the "Voice Commands" and "Architecture" sections to understand how the system is intended to route user requests.
-4.  **Track Progress**: Update the checklist in `Jarvis-README.txt` as features are completed or new bugs are identified.
+4.  **Track Progress**: Update the checklist in `Atlas-README.txt` as features are completed or new bugs are identified.
 
 ## Development Context
 - **Operating System**: Primarily Linux (Pop!_OS/Wayland).

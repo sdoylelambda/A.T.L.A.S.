@@ -10,8 +10,8 @@ Run main.py - python main.py or python3 main.py
 
 # Basic use
 [x] - Speak open (program name) ie: browser - browser loads
-[x] - Speak 'take a break' Jarvis does not respond until you speak 'Jarvis' or 'you there?'
-[x] - Jarvis 'face', spinning orb of lights, reacts when in different states. (sleeping, listening, thinking, error)
+[x] - Speak 'take a break' Atlas does not respond until you speak 'Atlas' or 'you there?'
+[x] - Atlas 'face', spinning orb of lights, reacts when in different states. (sleeping, listening, thinking, error)
 
 ### MVP
 [x] - Voice Commands
@@ -50,10 +50,10 @@ Save window position — remember where user dragged the GUI, restore on next la
 Planned Features
 
 GUI update — display thought process, show what Brain is doing in real time
-Self-expanding keyword layer — Jarvis learns frequent commands and routes them instantly next time, skipping Brain entirely
-RAG over local files — Jarvis reads your own documents and answers questions about them
-Screen / vision support — LLaVA model lets Jarvis see your screen
-Android client over SSH — control Jarvis from your phone
+Self-expanding keyword layer — Atlas learns frequent commands and routes them instantly next time, skipping Brain entirely
+RAG over local files — Atlas reads your own documents and answers questions about them
+Screen / vision support — LLaVA model lets Atlas see your screen
+Android client over SSH — control Atlas from your phone
 Persistent memory — remembers preferences and context across sessions
 Push-to-talk mode — keyboard shortcut triggers listening, bypasses mic threshold
 
@@ -83,7 +83,7 @@ Voice training — tune STT to your specific voice
     [] - Write email/paper/pdf AI
 [] - fix broken tests
 [x] - ask what can you do? get response
-    [x] - say hello -> i'm jarvis...
+    [x] - say hello -> i'm Atlas...
 [] - config linux/mac/windows versions
 [] - top level debug? or keep per file?
 [] - research {topic}
@@ -91,8 +91,8 @@ Voice training — tune STT to your specific voice
     [x] - give audio summary
 [x] - RULE: One sentence max for all responses. --- made it 'Keep responses as short as possible.'
 [x] - test performance under load/multitasking - looks good - 1 core at 100% rest under 20%
-[] - for 'bike week schedule' Jarvis should say feb 27-march 7
-[] - say what can you do -> i'm jarvis, here to...
+[] - for 'bike week schedule' Atlas should say feb 27-march 7
+[] - say what can you do -> i'm Atlas, here to...
 [x] - try different stt model sizes - see time delay? +5 seconds large not much better - small for fast response
 [] - max recording length?
 [] - read file

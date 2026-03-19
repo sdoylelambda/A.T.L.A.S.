@@ -30,7 +30,7 @@ env/
 # Config with secrets
 config.yaml
 
-# Projects create by Jarvis
+# Projects create by Atlas
 workspace/
 
 # Remember face location

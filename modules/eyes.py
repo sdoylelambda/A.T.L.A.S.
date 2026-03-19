@@ -103,7 +103,7 @@ class Eyes:
 
     def what_do_you_see(self) -> str:
         return self.analyze(
-            "You are Jarvis, a British AI assistant. Describe what you see concisely in 1-2 sentences. Address the user as sir."
+            "You are Atlas, a British AI assistant. Describe what you see concisely in 1-2 sentences. Address the user as sir."
         )
 
     def read_text(self) -> str:

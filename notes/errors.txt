@@ -10,3 +10,21 @@ classifying, planning, step, waiting (for confirmation)
 escalation for non code
 
 3 repeating words do not hit hallucination filter ie scooby, scooby, scooby or baby, baby, baby - all hallucinated
+
+GUI sleeping make pixels about 50% smaller
+
+
+
+README update
+
+What can Atlas do?
+
+Quite a few things. Atlas can answer questions, tell jokes, and hold a conversation.
+Atlas can open applications, control your browser, search the web, and navigate pages.
+Atlas can create files and folders, and generate code in Python, JavaScript, HTML, and more.
+Atlas can read files, run scripts, and manage your workspace.
+Atlas also has vision through your webcam — able to see what’s in front of it, identify objects,
+read text, and answer questions about what it sees. Atlas has access to Gemini for real-time information
+and Claude for long document analysis. It can also check and manage your calendar.
+
+What would you like Atlas to do for you?

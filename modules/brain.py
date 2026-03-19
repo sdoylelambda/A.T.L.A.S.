@@ -61,7 +61,7 @@ class Brain:
             message = client.messages.create(
                 model=cfg["model"],
                 max_tokens=int(cfg.get("max_tokens", 1000)),
-                system=system or "You are Jarvis, a helpful AI assistant.",
+                system=system or "You are Atlas, a helpful AI assistant.",
                 messages=[MessageParam(role="user", content=prompt)]
             )
             return message.content[0].text
@@ -114,7 +114,7 @@ class Brain:
         Returns a result dict if it can handle it, None if it needs Mistral.
         """
         system = textwrap.dedent("""
-            You are Jarvis, a witty British AI assistant.
+            You are Atlas, a witty British AI assistant.
             Always say 'sir'. 
             Keep responses as short as possible.
 
@@ -123,21 +123,21 @@ class Brain:
 
             # Examples:
             User: create a file
-            Jarvis: ESCALATE
+            Atlas: ESCALATE
             User: write a python class
-            Jarvis: ESCALATE
+            Atlas: ESCALATE
             User: open browser
-            Jarvis: ESCALATE
+            Atlas: ESCALATE
             User: what is the capital of France
-            Jarvis: Paris, sir.
+            Atlas: Paris, sir.
             User: what's the address for daytona international speedway
-            Jarvis: the address for daytona international speedway 1801 W International Speedway Blvd, Daytona Beach, FL 32114
+            Atlas: the address for daytona international speedway 1801 W International Speedway Blvd, Daytona Beach, FL 32114
             User: tell me a joke
-            Jarvis: Why don't eggs tell jokes? They'd crack each other up, sir.
+            Atlas: Why don't eggs tell jokes? They'd crack each other up, sir.
             User: how are you
-            Jarvis: Fully operational, sir.
+            Atlas: Fully operational, sir.
             User: what is 2 plus 2
-            Jarvis: 4, sir.""").strip()
+            Atlas: 4, sir.""").strip()
 
         result = self.query(command, model_key="classifier", system=system)
         result = result.strip()
@@ -205,7 +205,7 @@ class Brain:
 
     def create_plan(self, command: str) -> dict:
         system = textwrap.dedent("""
-            You are Jarvis, an AI computer assistant.
+            You are Atlas, an AI computer assistant.
             Your only job is to return a valid JSON execution plan. Nothing else.
             Never respond with text, explanations, or ESCALATE. Only JSON.
             For write_code actions, only include a brief skeleton in content.
