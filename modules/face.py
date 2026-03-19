@@ -70,24 +70,87 @@ class FaceController(QMainWindow):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        gui = config.get("gui", {})
+
+        # pull colors from config with fallbacks
+        bg = gui.get("background_color", "#0a0a0f")
+        text = gui.get("text_color", "#c8d8e8")
+        border = gui.get("border_color", "#1a6aff")
+        border_width = gui.get("border_width", 2)
+        title_color = gui.get("title_color", "#0a1a4a")
+        caption = gui.get("caption_color", "#8a9ab8")
+        heard = gui.get("heard_color", "#4499ff")
+        btn_bg = gui.get("button_bg", "#1a1a2e")
+        btn_border = gui.get("button_border", "#2a2a4e")
+        btn_hover = gui.get("button_hover", "#2a2a4e")
+
         self.setWindowTitle(config['personalize'].get('ai_assistant_name'))
         self.setObjectName("jarvis.assistant")
         self.setMinimumSize(220, 350)
-        self.setStyleSheet("""
-            QMainWindow, QWidget { background-color: #0a0a0f; color: #c8d8e8; }
-            QPushButton { background-color: #1a1a2e; color: #c8d8e8; border: 1px solid #2a2a4e;
-                          border-radius: 6px; padding: 8px 16px; font-size: 13px; }
-            QPushButton:hover { background-color: #2a2a4e; border-color: #4a4a8e; }
-            QPushButton:pressed { background-color: #0a0a1e; }
-            QPushButton#cancel_btn { border-color: #8e2a2a; color: #ff6b6b; }
-            QPushButton#cancel_btn:hover { background-color: #2e1a1a; border-color: #ff4444; }
-            QPushButton#mute_btn_active { background-color: #2e1a1a; border-color: #ff4444;
-                                          color: #ff6b6b; }
-            QLineEdit { background-color: #1a1a2e; color: #c8d8e8; border: 1px solid #2a2a4e;
-                        border-radius: 6px; padding: 8px 12px; font-size: 13px; }
-            QLineEdit:focus { border-color: #4a6aae; }
-            QLabel#caption_label { color: #8a9ab8; font-size: 12px; padding: 4px 8px; min-height: 40px; }
-            QLabel#state_label { color: #4a5a7a; font-size: 11px; padding: 2px 8px; }
+
+        self.setStyleSheet(f"""
+            QMainWindow {{
+                background-color: {title_color};
+            }}
+            QMainWindow::separator {{
+                background-color: {border};
+                width: {border_width}px;
+                height: {border_width}px;
+            }}
+            QWidget {{
+                background-color: {bg};
+                color: {text};
+                border: none;
+            }}
+            QMainWindow > QWidget {{
+                border: {border_width}px solid {border};
+            }}
+            QPushButton {{
+                background-color: {btn_bg};
+                color: {text};
+                border: 1px solid {btn_border};
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background-color: {btn_hover};
+                border-color: #4a4a8e;
+            }}
+            QPushButton:pressed {{ background-color: #0a0a1e; }}
+            QPushButton#cancel_btn {{
+                border-color: #8e2a2a;
+                color: #ff6b6b;
+            }}
+            QPushButton#cancel_btn:hover {{
+                background-color: #2e1a1a;
+                border-color: #ff4444;
+            }}
+            QPushButton#mute_btn_active {{
+                background-color: #2e1a1a;
+                border-color: #ff4444;
+                color: #ff6b6b;
+            }}
+            QLineEdit {{
+                background-color: {btn_bg};
+                color: {text};
+                border: 1px solid {btn_border};
+                border-radius: 6px;
+                padding: 8px 12px;
+                font-size: 13px;
+            }}
+            QLineEdit:focus {{ border-color: {border}; }}
+            QLabel#caption_label {{
+                color: {caption};
+                font-size: 12px;
+                padding: 4px 8px;
+                min-height: 40px;
+            }}
+            QLabel#state_label {{
+                color: #4a5a7a;
+                font-size: 11px;
+                padding: 2px 8px;
+            }}
         """)
 
         # callbacks — set by Observer after init
@@ -142,10 +205,11 @@ class FaceController(QMainWindow):
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(2)
 
-        # vispy canvas
+        # canvas background from config
+        bg = self.config.get("gui", {}).get("background_color", "#0a0a0f")
         self.canvas = scene.SceneCanvas(
             keys='interactive', size=(200, 200),
-            show=False, bgcolor='#0a0a0f'
+            show=False, bgcolor=bg
         )
         self.view = self.canvas.central_widget.add_view()
         self.view.camera = scene.cameras.TurntableCamera(
@@ -174,7 +238,9 @@ class FaceController(QMainWindow):
 
         # captions
         self.heard_label = QLabel("")
-        self.heard_label.setStyleSheet("color: #4499ff; font-size: 11px;")
+        # heard label color from config
+        heard_color = self.config.get("gui", {}).get("heard_color", "#4499ff")
+        self.heard_label.setStyleSheet(f"color: {heard_color}; font-size: 11px;")
         self.heard_label.setWordWrap(True)
         self.heard_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.heard_label)

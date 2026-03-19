@@ -4,6 +4,24 @@ personalize:
   # response_name: 'sir' -- allow use to change to 'ma'am', 'john', 'jane', etc.
   # home_city: "New York"  -- for what's the weather and local based responses
 
+gui:
+  # window border
+  border_color: "#1a6aff"        # light blue
+  border_width: 3
+  # title bar / window chrome
+  title_color: "#0a1a4a"         # dark blue
+  # background
+  background_color: "#0a0a0f"
+  window_bg: "#0a0a0f"
+  # text colors
+  text_color: "#c8d8e8"
+  caption_color: "#8a9ab8"
+  heard_color: "#4499ff"
+  # button colors
+  button_bg: "#1a1a2e"
+  button_border: "#2a2a4e"
+  button_hover: "#2a2a4e"
+
 # ---- Node identity ----
 node:
   name: "g7"
@@ -146,7 +164,8 @@ dev:
 # ---- Device ----
 system:
   cpu_threads: 6
-  use_gpu: true
+  # For whisper - models auto switch from GPU to CPU
+  use_gpu: false
 
 # ---- Browser ----
 browser:

@@ -80,6 +80,7 @@ announced before use.
 - [x] Google calendar integration and control
 - [x] Camera integration to view and assess real scenarios
 - [x] Screen / vision support (LLaVA)
+- [x] Config-driven GUI colors — border, background, text, buttons all configurable via config.yaml
 
 ### Planned
 - [ ] Self-expanding fast keyword layer
@@ -98,11 +99,11 @@ announced before use.
 - [ ] Function Gemma - live data; weather, stock prices, etc.
 - [ ] Mac and PC versions
 - [ ] Camera add more features
-      - [ ] Gemini Vision fallback — for complex analysis
-      - [ ] "analyze this diagram"
-      - [ ] "what's wrong with this code" ← hold code up to camera
-      - [ ] "summarize this document"
-      - [ ] Use mobile phone's camera     
+  - [ ] Gemini Vision fallback — for complex analysis
+  - [ ] "analyze this diagram"
+  - [ ] "what's wrong with this code" ← hold code up to camera
+  - [ ] "summarize this document"
+  - [ ] Use mobile phone's camera     
 
 ---
 
@@ -461,6 +462,9 @@ The GUI is a PyQt5 window with a vispy 3D particle orb embedded above a control 
 
 The orb features per-particle color variation, depth-based size variation, and beam line connections between nearby particles for a holographic look. Each state has distinct particle density, breathing speed, and connection density.
 
+> Orb particle colors are defined in `face.py` `COLORS` dict. 
+> GUI chrome colors are configurable via `config.yaml` under the `gui` section.
+
 ### Caption Area
 Displays real-time status as Atlas works:
 ```
@@ -483,6 +487,27 @@ Shows spoken text when Atlas is speaking, clears automatically after.
 - Window positioning and always-on-top not supported under Wayland by design
 - On COSMIC desktop: right-click titlebar → Sticky to pin above other windows
 - On X11: window position saves automatically every 5 seconds and restores on next launch
+
+## GUI Customization
+
+All GUI colors are configurable in `config.yaml` — no code changes needed.
+```yaml
+gui:
+  border_color: "#1a6aff"      # window border color
+  border_width: 2              # border thickness in pixels
+  background_color: "#0a0a0f"  # main background
+  text_color: "#c8d8e8"        # primary text
+  caption_color: "#8a9ab8"     # caption/status text
+  heard_color: "#4499ff"       # "heard" transcription label
+  button_bg: "#1a1a2e"         # button background
+  button_border: "#2a2a4e"     # button border
+  button_hover: "#2a2a4e"      # button hover background
+```
+
+### Notes
+- Titlebar color is controlled by your desktop compositor (COSMIC, GNOME, etc.) — not configurable via Qt on Wayland
+- Canvas background updates automatically from `background_color`
+- Restart Atlas after changing colors
 
 ---
 
