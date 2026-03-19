@@ -1,0 +1,12 @@
+mute button does not work after 2nd use
+
+mute -> unmute -> mute = it can hear
+
+
+speaking does not show 'speaking'
+change states to be in all caps ie Speaking
+classifying, planning, step, waiting (for confirmation)
+
+escalation for non code
+
+3 repeating words do not hit hallucination filter ie scooby, scooby, scooby or baby, baby, baby - all hallucinated

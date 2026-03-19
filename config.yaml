@@ -12,7 +12,6 @@ gui:
   title_color: "#0a1a4a"         # dark blue
   # background
   background_color: "#0a0a0f"
-  window_bg: "#0a0a0f"
   # text colors
   text_color: "#c8d8e8"
   caption_color: "#8a9ab8"
