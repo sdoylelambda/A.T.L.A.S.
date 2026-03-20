@@ -13,6 +13,10 @@ escalation for non code
 
 GUI sleeping make pixels about 50% smaller
 
+what's on my calendar tries to create an event
+
+[STATE] listening --- remove already have [observer] ears resumed
+
 
 
 README update
@@ -28,3 +32,31 @@ read text, and answer questions about what it sees. Atlas has access to Gemini f
 and Claude for long document analysis. It can also check and manage your calendar.
 
 What would you like Atlas to do for you?
+
+
+
+# auto-start Atlas when connecting via SSH
+if [ -n "$SSH_CONNECTION" ]; then
+    cd ~/dev/A.T.L.A.S.
+    source .venv/bin/activate
+    exec python main.py --no-gui
+fi
+```
+
+Now just typing `atlas` in Termux connects AND starts Atlas automatically.
+
+**On the Siri point** — exactly right. With phone mic/speakers/camera:
+```
+Wake word detected on phone mic
+→ Atlas processes on desktop GPU
+→ Response plays through phone speaker
+→ Phone camera feeds vision
+→ No GUI needed at all
+
+
+
+
+PHONE TERMUX
+
+echo "alias atlas='ssh your_username@your_tailscale_ip -p 22'" >> ~/.bashrc
+source ~/.bashrc
