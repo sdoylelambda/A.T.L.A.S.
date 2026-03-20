@@ -156,7 +156,7 @@ class Observer:
                     continue
 
                 # 😴 Pause command
-                if any(phrase in text for phrase in ["take a break", "break", "stop listening", "go to sleep"]):
+                if any(phrase in text for phrase in ["take a break", "a break", "stop listening", "go to sleep"]):
                     self.paused = True
                     self.face.set_state("sleeping")
                     with timer("TTS sleep", self.debug):
