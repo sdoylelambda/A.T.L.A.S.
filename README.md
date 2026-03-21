@@ -477,6 +477,180 @@ With tmux Atlas runs permanently on your desktop — reconnect from your phone a
 
 ---
 
+## Running Atlas on Android (Standalone)
+
+Atlas can run directly on Android using proot-distro — no desktop required for basic functionality. phi3 handles fast Q&A locally on device, with optional fallback to desktop for heavy tasks.
+
+> **Tested on:** Samsung Galaxy S10+ (8GB RAM, Snapdragon 855, ARM64)
+
+---
+
+### What Works on Android
+```
+phi3:mini local inference  ✅  ~5 second responses
+Text input via >> prompt   ✅
+Calendar integration       ✅
+Gemini API                 ✅
+Brain/LLM routing          ✅
+Voice input/output         ❌  use_mock: true (text only)
+GUI orb                    ❌  --no-gui mode
+```
+
+---
+
+### Prerequisites
+- Termux installed from **F-Droid** (not Play Store)
+- At least 6GB free storage
+- 6GB+ RAM recommended (8GB ideal)
+- WiFi recommended for initial setup
+
+---
+
+### Step 1 — Install proot-distro
+```bash
+# in Termux
+pkg update && pkg install proot-distro git wget -y
+proot-distro install ubuntu
+proot-distro login ubuntu
+```
+
+---
+
+### Step 2 — Install system dependencies
+```bash
+# inside Ubuntu proot
+apt update && apt upgrade -y
+apt install python3 python3-venv python3-pip git wget \
+  portaudio19-dev python3-dev libasound2-dev \
+  libopenblas-dev software-properties-common -y
+```
+
+---
+
+### Step 3 — Install Ollama
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+
+# start Ollama in background
+ollama serve &
+
+# wait a few seconds then pull phi3
+ollama pull phi3:mini
+```
+
+> **Note:** `ollama serve` may appear to hang — it's running in background. If you see "address already in use" it's already started successfully.
+
+---
+
+### Step 4 — Clone Atlas
+```bash
+cd ~
+git clone https://github.com/sdoylelambda/A.T.L.A.S.git
+cd A.T.L.A.S
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+---
+
+### Step 5 — Install Python dependencies
+```bash
+pip install pyyaml ollama anthropic google-genai \
+  prompt-toolkit requests numpy openai-whisper \
+  faster-whisper simpleaudio piper-tts playwright \
+  keyring google-auth-oauthlib google-api-python-client \
+  opencv-python-headless
+```
+
+> **Note:** PyAudio may fail on ARM — skip it, audio is mocked on Android.
+> faiss-cpu is optional — skip if it fails, only needed for RAG/memory.
+
+---
+
+### Step 6 — Download voice model
+```bash
+mkdir -p modules/voices
+cd modules/voices
+wget https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx
+wget https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx.json
+mv en_GB-alan-medium.onnx british_man_GB-alan-medium.onnx
+mv en_GB-alan-medium.onnx.json british_man_GB-alan-medium.onnx.json
+cd ~/A.T.L.A.S
+```
+
+---
+
+### Step 7 — Configure for Android
+```yaml
+# config.yaml
+audio:
+  use_mock: true   # disables mic/speakers — use text input instead
+
+system:
+  use_gpu: false   # no GPU in proot environment
+```
+
+---
+
+### Step 8 — Run Atlas
+```bash
+ollama serve &
+python3 main.py --no-gui
+```
+
+---
+
+### Returning to Atlas
+Everything persists between sessions. To resume:
+```bash
+# in Termux
+proot-distro login ubuntu
+cd ~/A.T.L.A.S
+source .venv/bin/activate
+ollama serve &
+python3 main.py --no-gui
+```
+
+Add a shortcut alias in Ubuntu's `~/.bashrc`:
+```bash
+echo "alias atlas='cd ~/A.T.L.A.S && source .venv/bin/activate && ollama serve & && sleep 2 && python3 main.py --no-gui'" >> ~/.bashrc
+source ~/.bashrc
+```
+
+Then just type `atlas` to start.
+
+---
+
+### Memory Considerations
+```
+phi3:mini needs ~3.5GB RAM
+Close all other apps before running
+If "requires more system memory" error:
+  → close all background apps
+  → try again
+  → phi3 needs ~3.5GB free
+```
+
+---
+
+### Architecture: Android Standalone vs SSH
+```
+Android Standalone (this guide):
+  Phone runs phi3 locally
+  No desktop needed for basic commands
+  Text only — no voice
+  
+SSH to Desktop (see Remote Access section):
+  All processing on desktop GPU
+  Much faster responses
+  Voice works via desktop mic/speakers
+  Requires desktop to be on
+```
+
+For best results — use SSH for voice commands at home, standalone for text commands anywhere.
+
+---
+
 ### Future: Phone as Full Interface
 
 With phone mic, speakers, and camera integrated, the GUI becomes optional:
