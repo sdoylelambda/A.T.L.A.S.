@@ -10,13 +10,20 @@ class Ears:
 
     def __init__(self, chunk_size=1024, rate=48000, debug=False,
                  pre_speech_timeout=3.0, max_speech_duration=25.0,
-                 silence_seconds=1.5):
+                 silence_seconds=1.5, config=None):
+
         self.audio_stream = None
         self.chunk_size = chunk_size
         self.rate = rate
         self.paused = False
         self.debug = debug
         self.speaking = False
+        self.use_mock = config.get("audio", {}).get("use_mock", False) if config else False
+
+        # skip hardware initialization if mock mode
+        if self.use_mock:
+            print("[Ears] Mock mode — audio disabled")
+            return
 
         # dynamic — set by calibration
         self.start_threshold = 32767  # max possible value — won't trigger until calibrated
@@ -145,6 +152,8 @@ class Ears:
 
     async def auto_calibrate(self, interval: int = 30):
         """Recalibrate noise floor every interval seconds, only during silence."""
+        if self.use_mock:
+            return
         while True:
             await asyncio.sleep(interval)
             try:
@@ -160,6 +169,12 @@ class Ears:
     async def listen(self, max_duration=30.0):
         if self.debug:
             print(f"[Ears] Thresholds: start={int(self.start_threshold)} stop={int(self.stop_threshold)}")
+
+        if self.use_mock:
+            # block forever — text input handles commands
+            await asyncio.sleep(9999)
+            return None, 0
+
         # retry up to 3 times with backoff
         for attempt in range(3):
             try:

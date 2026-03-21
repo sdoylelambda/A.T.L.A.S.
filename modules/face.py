@@ -178,6 +178,7 @@ class FaceController(QMainWindow):
         self.target_radius = self.base_radius
         self.current_state = "listening"
         self.state_queue = Queue()
+        self._current_state = None
 
         # breathing
         self.breath_phase = 0.0
@@ -305,6 +306,9 @@ class FaceController(QMainWindow):
             import traceback
             print(f"[Face] set_state({state})")
             traceback.print_stack(limit=4)
+        if state == self._current_state:
+            return  # skip if state hasn't changed
+        self._current_state = state
         self.signals.state_changed.emit(state)
 
     def set_caption(self, text: str):
