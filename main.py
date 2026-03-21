@@ -23,10 +23,22 @@ async def run_text_only(config):
     from prompt_toolkit import PromptSession
 
     class MockFace:
-        def set_state(self, s): print(f"[State] {s}")
+        def __init__(self):
+            self._current_state = None
+
+        def set_state(self, s):
+            if s == self._current_state:
+                return
+            self._current_state = s
+            if s in ["error", "sleeping"]:
+                print(f"[State] {s}")
+
         def set_caption(self, t):
             if t: print(f"[Atlas] {t}")
-        def set_heard(self, t): print(f"[Heard] {t}")
+
+        def set_heard(self, t):
+            print(f"[Heard] {t}")
+
         on_cancel = None
         on_mute = None
         on_command = None

@@ -25,7 +25,7 @@ class TTSModule:
             print(f"[TTS] {text}")
             return
 
-        print(f"[TTS] {text}")
+        # print(f"[TTS] {text}")
         try:
             buf = io.BytesIO()
             with wave.open(buf, "wb") as wav_file:

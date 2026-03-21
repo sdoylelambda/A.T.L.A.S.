@@ -19,7 +19,7 @@ from custom_exceptions import PermissionRequired, ModelUnavailable, PlanExecutio
 
 class Observer:
     def __init__(self, face_controller, window_controller, config):
-        self.debug = True
+        self.debug = False
         self.face = face_controller
         self.window_controller = window_controller
         self.config = config
@@ -32,6 +32,7 @@ class Observer:
         self._key_event = threading.Event()
         self._pending_key = None
         self._waiting_for_key = False
+        self._current_state = None
         set_key_request_callback(self._request_key_via_gui)
 
         self.brain = Brain(config)

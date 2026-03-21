@@ -10,6 +10,7 @@ SHORT_THRESHOLD_SECONDS = 10  # use whisper for >10s, faster-whisper for shorter
 
 class HybridSTT:
     def __init__(self, whisper_model="small", fw_model="small", use_gpu=False):
+        self.debug = False
         device = "cuda" if use_gpu else "cpu"
 
         print(f"[STT] Loading Whisper model {whisper_model} model...")
@@ -21,7 +22,6 @@ class HybridSTT:
             device=device,
             compute_type="int8" if not use_gpu else "float16"
         )
-        self.debug = True
 
     def _to_float32(self, audio_bytes):
         """Convert raw int16 bytes to normalized float32 numpy array."""

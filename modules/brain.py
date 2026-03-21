@@ -23,7 +23,7 @@ class Brain:
         self.vector_db = faiss.IndexFlatL2(384)
         self.memory_texts = []
         self._encoder = None  # lazy load
-        self.debug = True
+        self.debug = False
 
     # ─── core query method ───────────────────────────────────────────────
 
