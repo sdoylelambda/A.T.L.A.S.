@@ -15,14 +15,14 @@ GUI sleeping make pixels about 50% smaller
 
 what's on my calendar tries to create an event
 
-[STATE] listening --- remove already have [observer] ears resumed
-
 add mute atlas - turn tts off
 mute and speakers off on termux? just add terminal commands?
 
 on termux - can't type yes - execute command
 
 add use phone --- below -- what can you do response - dynamic
+
+goodbye message
 
 README update
 
