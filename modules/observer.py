@@ -94,6 +94,10 @@ class Observer:
                     print(f"[STT] Hallucination detected, skipping: {text[:50]}")
                     continue
 
+                if len(words) >= 3 and len(unique) == 1:
+                    print(f"[STT] Repetition hallucination detected, skipping: {text[:50]}")
+                    continue
+
                 # filter useless single words that aren't commands
                 known_short = [
                     # cancel/control
@@ -147,7 +151,7 @@ class Observer:
                 # 🔑 Wake hot words
                 wake_word = self.config.get("personalize", {}).get("ai_assistant_name", "atlas").lower()
 
-                if wake_word in text or "you there" in text or "wake up" in text or "Atlas" in text:
+                if wake_word in text or "you there" in text or "wake up" in text or "atlas" in text:
                     if self.paused:
                         self.paused = False
                         self.face.set_state("thinking")
@@ -176,7 +180,27 @@ class Observer:
 
                 # 📅 Calendar commands
                 if self.calendar:
-                    # 📅 Create event
+                    # 📅 Read intent — check BEFORE create intent
+                    read_phrases = [
+                        "what's on my calendar", "what is on my calendar",
+                        "check my calendar", "show my calendar",
+                        "what do i have", "what's on my schedule"
+                    ]
+                    if any(phrase in text for phrase in read_phrases):
+                        if any(w in text for w in ["this week", "upcoming", "week"]):
+                            events = await asyncio.to_thread(self.calendar.get_upcoming_events, 7)
+                            await self.say(self.calendar.format_events_for_speech(events, multi_day=True),
+                                           next_state="listening")
+                        elif any(w in text for w in ["tomorrow", "tomorrow's"]):
+                            events = await asyncio.to_thread(self.calendar.get_tomorrows_events)
+                            await self.say(self.calendar.format_events_for_speech(events), next_state="listening")
+                        else:
+                            # default to today
+                            events = await asyncio.to_thread(self.calendar.get_todays_events)
+                            await self.say(self.calendar.format_events_for_speech(events), next_state="listening")
+                        continue
+
+                    # 📅 Create intent — only if explicit add/schedule word present
                     if any(phrase in text for phrase in [
                         "add ", "schedule ", "create event", "new event",
                         "new appointment", "remind me", "set a reminder"
@@ -185,6 +209,7 @@ class Observer:
                         "thursday", "friday", "saturday", "sunday",
                         "tonight", "this evening", "next week"
                     ]):
+
                         # try to parse directly first
                         parsed = self.calendar.parse_event_from_text(text)
 
@@ -271,7 +296,7 @@ class Observer:
                             await self.say(self.calendar.format_events_for_speech(events), next_state="listening")
                             continue
 
-                        if any(w in text for w in ["next meeting", "next event", "what's next"]):
+                        if any(w in text for w in ["next meeting", "next event", "what's next", "next appointment"]):
                             event = await asyncio.to_thread(self.calendar.get_next_event)
                             response = self.calendar.format_events_for_speech(
                                 [event]) if event else "Nothing coming up, sir."
