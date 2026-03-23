@@ -34,7 +34,7 @@ class FaceController(QMainWindow):
         "listening": 400,
         "thinking": 650,
         "error": 400,
-        "sleeping": 150,
+        "sleeping": 75,
         "speaking": 550,
     }
 
@@ -51,7 +51,7 @@ class FaceController(QMainWindow):
         "listening": (0.35, 0.25),
         "thinking": (0.4, 0.35),
         "error": (0.3, 0.4),
-        "sleeping": (0.5, 0.1),
+        "sleeping": (0.1, 0.1),
         "speaking": (0.3, 0.3),
     }
 
@@ -324,16 +324,18 @@ class FaceController(QMainWindow):
             return
         self.state_queue.put(state)
         labels = {
-            "listening": "● listening",
-            "thinking":  "● thinking",
-            "error":     "● error",
-            "sleeping":  "● sleeping",
+            "listening": "● Listening ●",
+            "thinking":  "● Thinking ●",
+            "error":     "● Error ●",
+            "sleeping":  "● Sleeping ●",
+            "speaking":  "● Speaking ●",
         }
         colors = {
             "listening": "#3a6aee",
             "thinking":  "#3aee6a",
             "error":     "#ee3a3a",
             "sleeping":  "#eec83a",
+            "speaking":  "#66ccff",
         }
         self.state_label.setText(labels.get(state, ""))
         self.state_label.setStyleSheet(
@@ -436,7 +438,8 @@ class FaceController(QMainWindow):
 
         # size variation by distance from center
         dist = np.linalg.norm(scaled, axis=1)
-        sizes = self.BASE_SIZE * (1.0 / (0.5 + dist))
+        size_multiplier = 0.5 if self.current_state == "sleeping" else 1.0
+        sizes = self.BASE_SIZE * size_multiplier * (1.0 / (0.5 + dist))
 
         # per-particle color variation
         variation = self.COLOR_VARIATION.get(self.current_state, 0.1)
