@@ -11,7 +11,7 @@ escalation for non code
 
 3 repeating words do not hit hallucination filter ie scooby, scooby, scooby or baby, baby, baby - all hallucinated
 
-GUI sleeping make pixels about 50% smaller
+print ctx for deepseek
 
 what's on my calendar tries to create an event
 

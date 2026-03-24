@@ -330,12 +330,18 @@ class Observer:
 
         self.face.set_caption("waiting for confirmation...")
 
-        audio_bytes, duration = await self.ears.listen()
-        response = self.stt.transcribe(audio_bytes, duration).lower().strip() if audio_bytes else ""
+        await asyncio.sleep(3.5)
+
+        try:
+            response = self._text_command_queue.get_nowait()
+            print(f"[Observer] Text command: {response}")
+        except asyncio.QueueEmpty:
+            audio_bytes, duration = await self.ears.listen()
+            response = self.stt.transcribe(audio_bytes, duration).lower().strip() if audio_bytes else ""
         print(f"[Heard] {response}")
 
         confirmed = any(w in response for w in [
-            "yes", "yeah", "yep", "do", "it", "proceed",
+            "y", "yes", "yeah", "yep", "do", "it", "proceed",
             "sure", "ahead", "affirmative", "correct",
             "build", "sounds", "good"
         ])
@@ -382,11 +388,19 @@ class Observer:
             f"This command needs to go to {e.model_key}. "
             f"Say yes to send it or no to cancel."
         )
-        audio_bytes, duration = await self.ears.listen()
-        response = self.stt.transcribe(audio_bytes, duration).lower().strip() if audio_bytes else ""
 
-        if any(w in response for w in ["yes", "yeah", "yep", "do it", "send", "sure"]):
+        await asyncio.sleep(2)
+
+        try:
+            response = self._text_command_queue.get_nowait()
+            print(f"[Observer] Text command: {response}")
+        except asyncio.QueueEmpty:
+            audio_bytes, duration = await self.ears.listen()
+            response = self.stt.transcribe(audio_bytes, duration).lower().strip() if audio_bytes else ""
+
+        if any(w in response for w in ["y", "yes", "yeah", "yep", "do it", "send", "sure"]):
             # temporarily disable permission check
+            print(f"[STT Raw] '{response}'")
             original = self.brain.api_models[e.model_key].get("ask_permission")
             self.brain.api_models[e.model_key]["ask_permission"] = False
             try:
