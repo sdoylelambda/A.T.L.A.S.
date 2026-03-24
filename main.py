@@ -96,7 +96,8 @@ def run_async(face, config):
                 observer._provide_key(text)
             else:
                 asyncio.run_coroutine_threadsafe(
-                    observer.handle_brain_command(text), loop
+                    observer._text_command_queue.put(text.lower().strip()),
+                    loop
                 )
 
         face.on_command = handle_text_input

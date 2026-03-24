@@ -26,6 +26,7 @@ class Observer:
         self.paused = False
         self.cancelled = False
         self._processing = False
+        self._text_command_queue = asyncio.Queue()
         self._last_spoken = ""
         self._last_spoken_time = 0
         self._finishing = False
@@ -71,64 +72,64 @@ class Observer:
                 elif not self._processing and not self._finishing:
                     self.face.set_state("listening")
 
-                # 🎧 Listen
-                audio_bytes, duration = await self.ears.listen()
+                # check for text input before listening to mic
+                try:
+                    text = self._text_command_queue.get_nowait()
+                    print(f"[Observer] Text command: {text}")
+                except asyncio.QueueEmpty:
+                    # normal voice path
+                    audio_bytes, duration = await self.ears.listen()
+                    if not audio_bytes:
+                        await asyncio.sleep(0.05)
+                        continue
+                    with timer("STT", self.debug):
+                        text = self.stt.transcribe(audio_bytes, duration)
+                    if not text:
+                        continue
+                    text = text.lower().strip()
 
-                if not audio_bytes:
-                    await asyncio.sleep(0.05)
-                    continue
+                    # filter hallucinations
+                    words = text.split()
+                    unique = set(words)
+                    if len(unique) <= 2 and len(words) > 6:
+                        print(f"[STT] Hallucination detected, skipping: {text[:50]}")
+                        continue
 
-                # 🧠 STT
-                with timer("STT", self.debug):
-                    text = self.stt.transcribe(audio_bytes, duration)
+                    if len(words) >= 3 and len(unique) == 1:
+                        print(f"[STT] Repetition hallucination detected, skipping: {text[:50]}")
+                        continue
 
-                if not text:
-                    continue
+                    # filter useless single words that aren't commands
+                    known_short = [
+                        # cancel/control
+                        "yes", "no", "cancel", "stop", "pause",
+                        "never mind", "forget it", "escape", "deselect",
+                        "first", "second", "third", "forth", "fifth", "break"
+                        # browser navigation
+                                                                      "zoom in", "zoom out", "zoom reset", "go down", "go up", "go back", "go forward",
+                        "new tab", "close tab", "refresh", "reload", "new window"
+                                                                     "full screen", "fullscreen", "find", "search on page",
+                        "scroll up", "scroll down", "next", "enter", "press enter",
+                        "copy", "paste", "select", "click", "escape",
+                        # app shortcuts
+                        "save", "run", "clear",
+                        # build commands
+                        "yeah", "yep", "do",  "it", "proceed",
+                        "sure", "go", "ahead", "affirmative", "correct",
+                        "build", "sounds", "good"
+                        # calendar commands
+                                           "today's events", "next event", "what's next", "this week", "upcoming events"
+                    ]
+                    if len(words) <= 1 and not any(cmd in text for cmd in known_short):
+                        print(f"[STT] Too short, skipping: {text}")
+                        continue
 
-                text = text.lower().strip()
-
-                # filter hallucinations
-                words = text.split()
-                unique = set(words)
-                if len(unique) <= 2 and len(words) > 6:
-                    print(f"[STT] Hallucination detected, skipping: {text[:50]}")
-                    continue
-
-                if len(words) >= 3 and len(unique) == 1:
-                    print(f"[STT] Repetition hallucination detected, skipping: {text[:50]}")
-                    continue
-
-                # filter useless single words that aren't commands
-                known_short = [
-                    # cancel/control
-                    "yes", "no", "cancel", "stop", "pause",
-                    "never mind", "forget it", "escape", "deselect",
-                    "first", "second", "third", "forth", "fifth", "break"
-                    # browser navigation
-                                                                  "zoom in", "zoom out", "zoom reset", "go down", "go up", "go back", "go forward",
-                    "new tab", "close tab", "refresh", "reload", "new window"
-                                                                 "full screen", "fullscreen", "find", "search on page",
-                    "scroll up", "scroll down", "next", "enter", "press enter",
-                    "copy", "paste", "select", "click", "escape",
-                    # app shortcuts
-                    "save", "run", "clear",
-                    # build commands
-                    "yeah", "yep", "do",  "it", "proceed",
-                    "sure", "go", "ahead", "affirmative", "correct",
-                    "build", "sounds", "good"
-                    # calendar commands
-                                       "today's events", "next event", "what's next", "this week", "upcoming events"
-                ]
-                if len(words) <= 1 and not any(cmd in text for cmd in known_short):
-                    print(f"[STT] Too short, skipping: {text}")
-                    continue
-
-                # filter echo of last spoken phrase
-                if (self._last_spoken and
-                        time.time() - self._last_spoken_time < 5.0 and
-                        self._similarity(text, self._last_spoken) > 0.6):
-                    print(f"[Observer] Echo detected, skipping: {text[:50]}")
-                    continue
+                    # filter echo of last spoken phrase
+                    if (self._last_spoken and
+                            time.time() - self._last_spoken_time < 5.0 and
+                            self._similarity(text, self._last_spoken) > 0.6):
+                        print(f"[Observer] Echo detected, skipping: {text[:50]}")
+                        continue
 
                 print(f"[Heard]: {text}")
                 self.face.set_heard(text)
