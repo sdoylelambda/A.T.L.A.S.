@@ -5,7 +5,7 @@ import datetime
 
 from modules.ears import Ears
 from modules.stt.hybrid_stt import HybridSTT
-from modules.tts import TTSModule
+from modules.mouth import Mouth
 from modules.app_launcher import AppLauncher
 from modules.brain import Brain
 from modules.tool_executor import ToolExecutor
@@ -37,7 +37,7 @@ class Observer:
 
         self.brain = Brain(config)
         self.ears = Ears()  # pass config
-        self.mouth = TTSModule(use_mock=config["audio"].get("use_mock", False))
+        self.mouth = Mouth(use_mock=config["audio"].get("use_mock", False))
         self.browser_controller = BrowserController(config)
         self.launcher = AppLauncher(window_controller, self.browser_controller)
         self.executor = ToolExecutor(self.launcher, self.browser_controller, self.brain)
