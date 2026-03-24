@@ -538,6 +538,7 @@ class Observer:
             "I can open applications, control your browser, search the web, and navigate pages. "
             "I can create files and folders, and generate code in Python, JavaScript, HTML, and more. "
             "I can read files, run scripts, and manage your workspace. "
+            "I can run on your Android device and send complex commands to your computer. "
         )
 
         if self.eyes:
