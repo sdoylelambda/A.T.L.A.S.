@@ -89,7 +89,9 @@ integrations:
     # created on first run. it will be stored here
     token_path: "/home/zero/.config/atlas/google_calendar_token.json"
   gmail:
-    enabled: false
+    enabled: true
+    check_interval_minutes: 5
+    importance_threshold: 0.7
 
 # ---- Memory ----
 memory:

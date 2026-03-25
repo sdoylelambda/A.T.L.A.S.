@@ -4,15 +4,17 @@ import threading
 import datetime
 
 from modules.ears import Ears
-from modules.stt.hybrid_stt import HybridSTT
 from modules.mouth import Mouth
-from modules.app_launcher import AppLauncher
 from modules.brain import Brain
+from modules.eyes import Eyes
+from modules.stt.hybrid_stt import HybridSTT
+from modules.app_launcher import AppLauncher
 from modules.tool_executor import ToolExecutor
 from modules.browser_controller import BrowserController
 from modules.utils import timer
 from modules.calendar_module import CalendarModule
-from modules.eyes import Eyes
+from modules.gmail.gmail_module import GmailModule
+from modules.gmail.email_drafter import EmailDrafter
 from config.api_keys import set_key_request_callback
 from custom_exceptions import PermissionRequired, ModelUnavailable, PlanExecutionError
 
@@ -39,13 +41,17 @@ class Observer:
         self.brain = Brain(config)
         self.ears = Ears()  # pass config
         self.mouth = Mouth(use_mock=config["audio"].get("use_mock", False))
+        vision_enabled = config.get("vision", {}).get("enabled", False)
+        self.eyes = Eyes(config) if vision_enabled else None
         self.browser_controller = BrowserController(config)
         self.launcher = AppLauncher(window_controller, self.browser_controller)
         self.executor = ToolExecutor(self.launcher, self.browser_controller, self.brain)
         calendar_enabled = config.get("integrations", {}).get("google_calendar", {}).get("enabled", False)
         self.calendar = CalendarModule(config) if calendar_enabled else None
-        vision_enabled = config.get("vision", {}).get("enabled", False)
-        self.eyes = Eyes(config) if vision_enabled else None
+        gmail_enabled = config.get("integrations", {}).get("gmail", {}).get("enabled", False)
+        self.gmail = GmailModule(config) if gmail_enabled else None
+        self.drafter = EmailDrafter(config) if self.gmail else None
+
         self.stt = HybridSTT(
             whisper_model=config["stt"].get("whisper_model", "small"),
             fw_model=config["stt"].get("fw_model", "small"),
@@ -181,9 +187,17 @@ class Observer:
 
                 # 📅 Calendar commands
                 if self.calendar:
-                    # 📅 Calendar commands
                     from modules.observer.calendar_handler import handle_calendar_command
                     if await handle_calendar_command(text, self.calendar, self.say, self.ears, self.stt):
+                        continue
+
+                # 📧 Gmail commands
+                if self.gmail:
+                    from modules.observer.gmail_handler import handle_gmail_command
+                    if await handle_gmail_command(
+                            text, self.gmail, self.drafter,
+                            self.calendar, self.say, self.ears, self.stt
+                    ):
                         continue
 
                 # 👁️ Vision commands
@@ -388,6 +402,8 @@ class Observer:
             f"This command needs to go to {e.model_key}. "
             f"Say yes to send it or no to cancel."
         )
+
+        self.face.set_caption("waiting for confirmation...")
 
         await asyncio.sleep(2)
 
