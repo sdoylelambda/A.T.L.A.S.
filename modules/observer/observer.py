@@ -14,6 +14,7 @@ from modules.browser_controller import BrowserController
 from modules.utils import timer
 from modules.calendar_module import CalendarModule
 from modules.gmail.gmail_module import GmailModule
+from modules.gmail.email_drafter import EmailDrafter
 from config.api_keys import set_key_request_callback
 from custom_exceptions import PermissionRequired, ModelUnavailable, PlanExecutionError
 
@@ -49,6 +50,7 @@ class Observer:
         self.calendar = CalendarModule(config) if calendar_enabled else None
         gmail_enabled = config.get("integrations", {}).get("gmail", {}).get("enabled", False)
         self.gmail = GmailModule(config) if gmail_enabled else None
+        self.drafter = EmailDrafter(config) if self.gmail else None
 
         self.stt = HybridSTT(
             whisper_model=config["stt"].get("whisper_model", "small"),
@@ -185,9 +187,17 @@ class Observer:
 
                 # 📅 Calendar commands
                 if self.calendar:
-                    # 📅 Calendar commands
                     from modules.observer.calendar_handler import handle_calendar_command
                     if await handle_calendar_command(text, self.calendar, self.say, self.ears, self.stt):
+                        continue
+
+                # 📧 Gmail commands
+                if self.gmail:
+                    from modules.observer.gmail_handler import handle_gmail_command
+                    if await handle_gmail_command(
+                            text, self.gmail, self.drafter,
+                            self.calendar, self.say, self.ears, self.stt
+                    ):
                         continue
 
                 # 👁️ Vision commands

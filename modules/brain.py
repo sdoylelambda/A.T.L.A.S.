@@ -321,6 +321,27 @@ class Brain:
 
         return plan
 
+    # ─── draft Gmail message ─────────────────────────────────────────────
+
+    def draft_email(self, prompt: str) -> str:
+        """Dedicated email drafting — plain text output, larger context."""
+        system = textwrap.dedent("""
+            You are a professional email assistant.
+            Write concise, friendly, professional emails.
+            2-3 sentences max unless more is needed.
+            Plain text only — no markdown, no JSON.
+            Do not include subject line or greeting.
+            Just the email body.
+        """).strip()
+
+        return self.query(
+            prompt,
+            model_key="orchestrator",
+            system=system,
+            num_ctx_override=2048,
+            max_tokens_override=500
+        )
+
     # ─── memory / RAG (step 11) ───────────────────────────────────────────
 
     @property

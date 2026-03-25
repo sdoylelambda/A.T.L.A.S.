@@ -17,3 +17,7 @@ boots on listening -> thinking
 google maps integration?
 
 enter fix for browser commands
+
+gmail switch to inbox instead of all mail? --- maybe all mail better.
+    Atlas can flag anything that may have ended up here that is important. ignore the rest
+    what about security risks? as long as not opening attachments = safe?
