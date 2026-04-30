@@ -247,6 +247,18 @@ class Observer:
                     ):
                         continue
 
+                # 👁️ Vision commands
+                if self.eyes:
+                    from modules.observer.eyes_handler import handle_vision_command
+                    if await handle_vision_command(text, self.face, self.mouth, self.eyes, self.debug):
+                        continue
+
+                # 📄 Document commands
+                from modules.observer.document_handler import handle_document_command
+                if await handle_document_command(text, self.face, self.mouth, self.brain, self.ears, self.stt,
+                                                 self.say,
+                                                 self.debug):
+
                 # 🧩 Feature Builder
                 if text.lower().startswith("add a new feature"):
                     self.face.set_state("thinking")
