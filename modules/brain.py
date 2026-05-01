@@ -257,7 +257,7 @@ class Brain:
 
     # ─── plan creation ────────────────────────────────────────────────────
 
-    def create_plan(self, command: str) -> dict:
+    def create_plan(self, command: str, num_ctx_override: int = None) -> dict:
         system = textwrap.dedent("""
             You are Atlas, an AI computer assistant.
             Your only job is to return a valid JSON execution plan. Nothing else.
@@ -317,7 +317,7 @@ class Brain:
             Only return JSON. No explanation. No markdown. No code blocks.""").strip()
 
         command = command.replace("ESCALATE", "").strip()
-        num_ctx = self._get_num_ctx(command)
+        num_ctx = num_ctx_override or self._get_num_ctx(command)
 
         # log why this ctx was chosen
         command_lower = command.lower()

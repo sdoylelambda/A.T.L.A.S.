@@ -258,6 +258,7 @@ class Observer:
                 if await handle_document_command(text, self.face, self.mouth, self.brain, self.ears, self.stt,
                                                  self.say,
                                                  self.debug):
+                    continue
 
                 # 🧩 Feature Builder
                 if text.lower().startswith("add a new feature"):
