@@ -1305,7 +1305,9 @@ browser:
 **Mistral returning truncated JSON**
 - Dynamic ctx sizing handles this automatically
 - Check `[Brain] num_ctx:` log line
-- If still occurring, increase manually in config
+- Run/update tests 'pytest test_brain_dynamic_ctx.py -v -s'
+- If still occurring, increase manually in config or 
+- Adjust filters in brain/_get_num_ctx()
 
 **"Shall I proceed" confirmation not heard**
 - Ears resumes after TTS — speak clearly after Atlas finishes asking
@@ -1319,6 +1321,10 @@ browser:
 - Expected on Wayland — compositor controls window placement
 - Drag to preferred position and use compositor sticky/pin feature
 
+**Mistral returning incomplete JSON**
+- Run/update tests 'pytest test_brain_dynamic_ctx.py -v -s'
+- Drag to preferred position and use compositor sticky/pin feature
+
 ---
 
 ## Running Tests
@@ -1326,24 +1332,30 @@ browser:
 source .venv/bin/activate
 pytest tests/ -v
 ```
+For brain test or to see more details add -v flag
+```
+pytest test_brain_dynamic_ctx.py -v -s
+```
 
 ### Test Structure
 ```
 tests/
-├── conftest.py              # shared fixtures — mock config, mock audio, fake Observer
-├── test_brain.py            # LLM routing, plan generation, context window sizing
-├── test_calendar_module.py  # checks schedule, adds events, verifies correct parsing 
-├── test_ears.py             # noise calibration, hallucination filters
-├── test_eyes.py             # webcam capture, LLaVA analysis, storage monitoring
-├── test_launcher.py         # launching and controlling apps
-├── test_observer.py         # command routing, cancel, confirmation flow
-├── test_tool_executor.py    # file creation, code generation, plan execution
-└── test_stt.py              # transcription, echo detection.
+├── conftest.py               # shared fixtures — mock config, mock audio, fake Observer
+├── test_brain.py             # LLM routing, plan generation, context window sizing
+├── test_brain_dynamic_ctx.py # find the minimum ctx tokens Mistral needs to return valid JSON
+├── test_calendar_module.py   # checks schedule, adds events, verifies correct parsing 
+├── test_ears.py              # noise calibration, hallucination filters
+├── test_eyes.py              # webcam capture, LLaVA analysis, storage monitoring
+├── test_launcher.py          # launching and controlling apps
+├── test_observer.py          # command routing, cancel, confirmation flow
+├── test_tool_executor.py     # file creation, code generation, plan execution
+└── test_stt.py               # transcription, echo detection.
 ```
 
 ### Running Specific Tests
 ```bash
 pytest tests/test_brain.py -v          # brain tests only
+pytest tests/test_brain_dynamic_ctx.py -v -s # Mistral minium ctx tokens
 pytest tests/test_tool_executor.py -v  # tool executor only
 pytest -k "test_cancel" -v             # any test with "cancel" in the name
 pytest -x                              # stop on first failure
