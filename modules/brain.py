@@ -332,7 +332,7 @@ class Brain:
             num_ctx_override=num_ctx
         )
         print(f"[Brain] Mistral raw response length: {len(result)}")
-        print(f"[Brain] Mistral raw response: {result[:200]}")
+        print(f"[Brain] Mistral raw response: {result}")
 
         try:
             start = result.find("{")
