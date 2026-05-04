@@ -429,8 +429,7 @@ class Brain:
             "class", "function", "method", "flask", "django", "react",
             "api", "database", "auth", "authentication", "script",
             "html", "css", "javascript", "typescript", "component",
-            "module", "library", "framework", "backend", "frontend",
-            "py", "dart", "js", "jsx"
+            "module", "library", "framework", "py", "dart", "js", "jsx"
         ]
 
         # also check for file extensions in command
@@ -443,18 +442,18 @@ class Brain:
         multi_keywords = ["and", "then", "also", "with", "plus", "add"]
         is_multi = sum(1 for kw in multi_keywords if kw in command_lower) >= 2
 
-        if is_code and words > 15:
-            return 8192  # complex code generation
+        if is_code and words >= 15:  # BUG-2 fix: was `words > 15`
+            return 4096  # was 8192 — data shows 1024 sufficient, 4096 for safety margin
         elif is_code:
-            return 4096  # simple code generation
+            return 1024  # was 4096 — data shows 1024 sufficient
         elif is_multi and words > 20:
-            return 4096  # complex multi-step
+            return 1024  # was 4096 — data shows 1024 sufficient
         elif words <= 10:
-            return 1024  # simple single commands
+            return 1024  # unchanged — already correct
         elif words <= 20:
-            return 2048  # medium commands
+            return 1024  # was 2048 — data shows 1024 sufficient
         else:
-            return 4096  # long commands
+            return 4096  # long commands only — keep headroom for long_email_draft anomaly
 
     # ─── cancel active llm  ─────────────────────────────────────────────
 
