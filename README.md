@@ -1326,24 +1326,30 @@ browser:
 source .venv/bin/activate
 pytest tests/ -v
 ```
+For brain test or to see more details add -v flag
+```
+pytest test_brain_dynamic_ctx.py -v -s
+```
 
 ### Test Structure
 ```
 tests/
-├── conftest.py              # shared fixtures — mock config, mock audio, fake Observer
-├── test_brain.py            # LLM routing, plan generation, context window sizing
-├── test_calendar_module.py  # checks schedule, adds events, verifies correct parsing 
-├── test_ears.py             # noise calibration, hallucination filters
-├── test_eyes.py             # webcam capture, LLaVA analysis, storage monitoring
-├── test_launcher.py         # launching and controlling apps
-├── test_observer.py         # command routing, cancel, confirmation flow
-├── test_tool_executor.py    # file creation, code generation, plan execution
-└── test_stt.py              # transcription, echo detection.
+├── conftest.py               # shared fixtures — mock config, mock audio, fake Observer
+├── test_brain.py             # LLM routing, plan generation, context window sizing
+├── test_brain_dynamic_ctx.py # find the minimum ctx tokens Mistral needs to return valid JSON
+├── test_calendar_module.py   # checks schedule, adds events, verifies correct parsing 
+├── test_ears.py              # noise calibration, hallucination filters
+├── test_eyes.py              # webcam capture, LLaVA analysis, storage monitoring
+├── test_launcher.py          # launching and controlling apps
+├── test_observer.py          # command routing, cancel, confirmation flow
+├── test_tool_executor.py     # file creation, code generation, plan execution
+└── test_stt.py               # transcription, echo detection.
 ```
 
 ### Running Specific Tests
 ```bash
 pytest tests/test_brain.py -v          # brain tests only
+pytest tests/test_brain_dynamic_ctx.py -v -s # Mistral minium ctx tokens
 pytest tests/test_tool_executor.py -v  # tool executor only
 pytest -k "test_cancel" -v             # any test with "cancel" in the name
 pytest -x                              # stop on first failure
