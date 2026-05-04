@@ -1305,7 +1305,9 @@ browser:
 **Mistral returning truncated JSON**
 - Dynamic ctx sizing handles this automatically
 - Check `[Brain] num_ctx:` log line
-- If still occurring, increase manually in config
+- Run/update tests 'pytest test_brain_dynamic_ctx.py -v -s'
+- If still occurring, increase manually in config or 
+- Adjust filters in brain/_get_num_ctx()
 
 **"Shall I proceed" confirmation not heard**
 - Ears resumes after TTS — speak clearly after Atlas finishes asking
@@ -1317,6 +1319,10 @@ browser:
 
 **GUI loads in the middle of the screen**
 - Expected on Wayland — compositor controls window placement
+- Drag to preferred position and use compositor sticky/pin feature
+
+**Mistral returning incomplete JSON**
+- Run/update tests 'pytest test_brain_dynamic_ctx.py -v -s'
 - Drag to preferred position and use compositor sticky/pin feature
 
 ---
