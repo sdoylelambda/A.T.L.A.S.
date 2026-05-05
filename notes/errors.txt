@@ -37,6 +37,8 @@ PDF - which file is found? should be the most recent timestamp
 
 config.yaml - mobile: mouth, face, and ears disabled
 
+is deepseek writing code?
+
 
 
 

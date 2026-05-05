@@ -18,8 +18,9 @@ class CalendarModule:
         self.debug = True
         self.config = config.get("integrations", {}).get("google_calendar", {})
         self.response_name = config["personalize"].get("response_name", "")
+        self.token_storage_location = "~/.config/atlas/google_calendar_token.json"
         self.creds_path = os.path.expanduser(self.config.get("credentials_path", "~/.config/atlas/google_calendar_credentials.json"))
-        self.token_path = os.path.expanduser(self.config.get("token_path", "~/.config/atlas/google_calendar_token.json"))
+        self.token_path = os.path.expanduser(self.config.get("token_path", self.token_storage_location))
         self.service = None
 
     def authenticate(self):
@@ -45,6 +46,11 @@ class CalendarModule:
     def _ensure_authenticated(self):
         if not self.service:
             self.authenticate()
+
+    async def regenerate_token(self):
+        token_path = os.path.expanduser(self.token_storage_location)
+        if os.path.exists(token_path):
+            os.remove(token_path)
 
     def get_todays_events(self) -> list:
         self._ensure_authenticated()
