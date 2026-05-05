@@ -235,8 +235,29 @@ class Observer:
                 # 📅 Calendar commands
                 if self.calendar:
                     from modules.observer.calendar_handler import handle_calendar_command
-                    if await handle_calendar_command(text, self.calendar, self.say, self.ears, self.stt, self.config):
-                        continue
+
+                    try:
+                        if await handle_calendar_command(
+                                text, self.calendar, self.say, self.ears, self.stt, self.config
+                        ):
+                            continue
+
+                    except Exception as e:
+                        if "Token has been expired or revoked" in str(e):
+                            print("Regenerating token...")
+
+                            await self.calendar.regenerate_token()
+
+                            try:
+                                if await handle_calendar_command(
+                                        text, self.calendar, self.say, self.ears, self.stt, self.config
+                                ):
+                                    continue
+                            except Exception as retry_error:
+                                print(f"Retry failed: {retry_error}")
+                        else:
+                            print(f"Calendar error: {e}")
+
 
                 # 📧 Gmail commands
                 if self.gmail:

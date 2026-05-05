@@ -46,6 +46,11 @@ class CalendarModule:
         if not self.service:
             self.authenticate()
 
+    async def regenerate_token(self):
+        token_path = os.path.expanduser("~/.config/atlas/google_calendar_token.json")
+        if os.path.exists(token_path):
+            os.remove(token_path)
+
     def get_todays_events(self) -> list:
         self._ensure_authenticated()
         # use local time not UTC
