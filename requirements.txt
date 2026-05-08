@@ -240,3 +240,4 @@ zipp==3.23.0
 
 pypdf
 mempalace
+fastapi
