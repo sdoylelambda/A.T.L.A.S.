@@ -1,26 +1,11 @@
-Escalates to Gemini - not connecting - missing keys? (no prompts on mobile gui)
+MOBILE - ANDROID
+Seems response is not sent until after it is read on computer speakers
 
-[Brain] Escalating to Mistral
-[Brain] num_ctx: 1024 (2 words)
-[Brain] Mistral raw response length: 161
-[Brain] Mistral raw response:  {
-  "summary": "Retrieving current events or news.",
-  "route": "gemini",
-  "steps": [
-    {"action": "web_search", "params": {"query": "current events"}}
-  ]
-}
-[Brain] Escalating to gemini
-INFO:     100.122.203.89:53336 - "POST /command HTTP/1.1" 500 Internal Server Error
+Responds 2x on computer 1x on phone
+
+timeout prevents complex responses
 
 
-
-fix cut off JSON
-[Brain] Mistral raw response:  {
-  "summary": "Creating a new project called lightbulbs with Python API for controlling smart lights.",
-  "route": "local",
-  "steps": [
-    {"action": "create_dir", "params": {"path": "lightbulbs"}
 
 calendar and follow-up commands don't work on termux -- they work as text commands on gui
 face.on_command = handle_text_input --- probably here on main.py

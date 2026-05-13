@@ -1,33 +1,35 @@
 """
-fastapi_server.py
+api/fastapi_server.py
 
 A.T.L.A.S. FastAPI Server
 Exposes Atlas to Flutter mobile client over Tailscale.
 
-Runs as a lightweight always-on process (started at boot via systemd).
-Starts Atlas automatically if not already running when phone connects.
+Mirrors run_text_only() in main.py — starts Observer.listen_and_respond()
+as a background task so the queue is always being processed.
+
+Commands from the phone are injected into Observer's _text_command_queue
+so they run through the exact same pipeline as voice and desktop text:
+keyword layer → phi3 → Mistral → ToolExecutor → calendar/email/vision/etc.
+
+Observer's say() captures the response into _api_response_queue when an
+API request is pending, so FastAPI can return it to the phone.
 
 Endpoints:
     POST /command   — send a text command, get a response
     GET  /status    — check if Atlas is running and its current state
 
 Auth:
-    X-API-Key header — set api_key in config.yaml under api_server section
+    X-API-Key header — key stored in ~/.config/atlas/api_key
 
 Run manually:
-    uvicorn fastapi_server:app --host 0.0.0.0 --port 8000 --reload
-
-Run via systemd:
-    see atlas-api.service
+    cd ~/dev/A.T.L.A.S.
+    uvicorn api.fastapi_server:app --host 0.0.0.0 --port 8000
 
 Author: Sean Doyle / A.T.L.A.S. Project
 """
 
 import asyncio
-import os
-import subprocess
 import sys
-import time
 import yaml
 
 from pathlib import Path
@@ -41,7 +43,9 @@ from contextlib import asynccontextmanager
 # Config
 # ---------------------------------------------------------------------------
 
-CONFIG_PATH = Path(__file__).parent.parent / "config.yaml"
+CONFIG_PATH  = Path(__file__).parent.parent / "config.yaml"
+API_KEY_PATH = Path.home() / ".config/atlas/api_key"
+PROJECT_DIR  = Path(__file__).parent.parent
 
 
 def load_config() -> dict:
@@ -49,14 +53,16 @@ def load_config() -> dict:
         return yaml.safe_load(f)
 
 
-config     = load_config()
-api_key_path = Path.home() / ".config/atlas/api_key"
-API_KEY = api_key_path.read_text().strip() if api_key_path.exists() else ""
-PORT       = config.get("api_server", {}).get("port", 8000)
-PROJECT_DIR = Path(__file__).parent
+def load_api_key() -> str:
+    if API_KEY_PATH.exists():
+        return API_KEY_PATH.read_text().strip()
+    return ""
+
+
+API_KEY = load_api_key()
 
 if not API_KEY:
-    print("[Atlas API] WARNING: No api_key set in config.yaml — server is unprotected!")
+    print("[Atlas API] WARNING: No api_key found at ~/.config/atlas/api_key — server is unprotected!")
 
 # ---------------------------------------------------------------------------
 # Auth
@@ -67,126 +73,148 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 async def verify_api_key(key: str = Security(api_key_header)):
     if not API_KEY:
-        return  # no key configured — open (dev mode)
+        return  # no key configured — open (dev mode only)
     if key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
 # ---------------------------------------------------------------------------
-# Atlas process manager
+# Atlas manager
 # ---------------------------------------------------------------------------
 
-class AtlasProcess:
+class AtlasManager:
     """
-    Manages the Atlas main process lifecycle.
-    Starts Atlas headless (--no-gui) if not already running.
-    Communicates via the Brain module directly once running.
+    Manages the Atlas Observer instance.
+    Starts listen_and_respond() as a background task — same as main.py
+    run_text_only() — so the command queue is always being processed.
     """
 
     def __init__(self):
-        self._process: subprocess.Popen | None = None
-        self._brain = None
-        self._observer = None
-        self._state = "stopped"
-        self._lock = asyncio.Lock()
+        self._observer       = None
+        self._observer_task  = None
+        self._state          = "stopped"
+        self._lock           = asyncio.Lock()
 
     @property
     def is_running(self) -> bool:
-        if self._process is None:
-            return False
-        return self._process.poll() is None  # None = still running
+        return self._observer is not None
 
     @property
     def state(self) -> str:
         return self._state
 
-    async def ensure_running(self):
-        """Start Atlas if not already running. Idempotent."""
+    async def start(self):
+        """
+        Initialise Observer and start listen_and_respond() as a
+        background task. Mirrors run_text_only() in main.py exactly.
+        """
         async with self._lock:
-            if self.is_running and self._brain is not None:
+            if self._observer is not None:
                 return
 
-            if not self.is_running:
-                print("[Atlas API] Atlas not running — starting headless...")
-                self._start_process()
-                await asyncio.sleep(5)  # give Atlas time to initialise
-
-            if self._brain is None:
-                self._load_brain()
-
-    def _start_process(self):
-        """Launch Atlas as a subprocess in --no-gui mode."""
-        python = sys.executable
-        main   = str(PROJECT_DIR / "main.py")
-        self._process = subprocess.Popen(
-            [python, main, "--no-gui"],
-            cwd=str(PROJECT_DIR),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        self._state = "starting"
-        print(f"[Atlas API] Atlas started (pid={self._process.pid})")
-
-    def _load_brain(self):
-        """Import and initialize Brain directly for API calls."""
-        try:
-            # Add project to path so modules resolve correctly
             if str(PROJECT_DIR) not in sys.path:
                 sys.path.insert(0, str(PROJECT_DIR))
 
-            from modules.brain import Brain
-            cfg = load_config()
-            self._brain = Brain(cfg)
-            self._state = "listening"
-            print("[Atlas API] Brain loaded and ready")
-        except Exception as e:
-            print(f"[Atlas API] Failed to load Brain: {e}")
-            self._state = "error"
-            raise
+            from modules.observer.observer import Observer
+            from modules.window_controller import WindowController
+            from config.api_keys import set_key_request_callback
 
-    async def process_command(self, text: str) -> str:
-        """
-        Send a text command through Brain and return the response.
-        Mirrors what Observer does when it receives a voice command.
-        """
-        await self.ensure_running()
+            config = load_config()
 
-        if self._brain is None:
-            raise RuntimeError("Brain not initialised")
+            # Minimal mock face — no PyQt5 needed
+            class MockFace:
+                def __init__(self):
+                    self._current_state = None
 
-        self._state = "thinking"
-        try:
-            loop   = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None,
-                self._brain.process,
-                text
+                def set_state(self, s):
+                    if s == self._current_state:
+                        return
+                    self._current_state = s
+                    if s in ["error", "sleeping"]:
+                        print(f"[Atlas API] State: {s}")
+
+                def set_caption(self, t):
+                    if t:
+                        print(f"[Atlas API] {t}")
+
+                def set_heard(self, t):
+                    if t:
+                        print(f"[Atlas API] Heard: {t}")
+
+                on_cancel  = None
+                on_mute    = None
+                on_command = None
+
+            window_controller = WindowController()
+            self._observer    = Observer(MockFace(), window_controller, config)
+
+            set_key_request_callback(self._observer._request_key_via_gui)
+
+            # Start the observer loop as a background task — this is what
+            # processes the _text_command_queue, exactly like main.py
+            self._observer_task = asyncio.create_task(
+                self._observer.listen_and_respond()
             )
 
-            # brain.process() returns either a string response or a dict plan.
-            # For the phone we always want a speakable string.
-            if isinstance(result, dict):
-                response = result.get("summary", "Done.")
-            else:
-                response = str(result) if result else "Done."
+            self._state = "listening"
+            print("[Atlas API] Observer started — queue is live")
 
+    def stop(self):
+        if self._observer_task:
+            self._observer_task.cancel()
+        self._observer = None
+        self._state    = "stopped"
+        print("[Atlas API] Observer stopped")
+
+    async def send_command(self, text: str, timeout: int = 60) -> str:
+        """
+        Inject a text command into Observer's queue and wait for response.
+
+        Flow:
+            1. Set _api_request_pending = True so say() captures response
+            2. Put command in _text_command_queue
+            3. Observer loop picks it up and processes it normally
+            4. say() fires → sees _api_request_pending → puts text in
+               _api_response_queue
+            5. We read and return it
+        """
+        if self._observer is None:
+            raise HTTPException(status_code=503, detail="Atlas not initialised")
+
+        obs = self._observer
+
+        # Signal to say() that this is an API request
+        obs._api_request_pending = True
+
+        # Drain any stale responses
+        while not obs._api_response_queue.empty():
+            obs._api_response_queue.get_nowait()
+
+        # Inject into the unified command queue
+        await obs._text_command_queue.put(text)
+
+        self._state = "thinking"
+        print(f"[Atlas API] Command queued: {text}")
+
+        try:
+            response = await asyncio.wait_for(
+                obs._api_response_queue.get(),
+                timeout=timeout,
+            )
+            print(f"[Atlas API] Response: {response[:80]}")
             return response
+        except asyncio.TimeoutError:
+            obs._api_request_pending = False
+            raise HTTPException(
+                status_code=504,
+                detail="Atlas took too long to respond. Try again."
+            )
         finally:
             self._state = "listening"
 
-    def stop(self):
-        """Gracefully stop Atlas."""
-        if self._process and self.is_running:
-            self._process.terminate()
-            self._process.wait(timeout=10)
-            print("[Atlas API] Atlas stopped")
-        self._state = "stopped"
-        self._brain = None
-        self._process = None
 
-
-# Global process manager instance
-atlas = AtlasProcess()
+# Global manager instance
+atlas = AtlasManager()
 
 
 # ---------------------------------------------------------------------------
@@ -195,15 +223,15 @@ atlas = AtlasProcess()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Start Atlas when the API server boots."""
-    print("[Atlas API] Server starting — initialising Atlas...")
+    print("[Atlas API] Server starting...")
     try:
-        await atlas.ensure_running()
+        await atlas.start()
     except Exception as e:
-        print(f"[Atlas API] Warning: Atlas failed to start on boot: {e}")
+        print(f"[Atlas API] Warning: Observer failed to start: {e}")
+        import traceback
+        traceback.print_exc()
     yield
-    # Shutdown
-    print("[Atlas API] Server shutting down...")
+    print("[Atlas API] Server shutting down.")
     atlas.stop()
 
 
@@ -218,17 +246,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow Flutter app to connect
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten this to your Tailscale IP range if desired
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
 # ---------------------------------------------------------------------------
-# Request / Response models
+# Models
 # ---------------------------------------------------------------------------
 
 class CommandRequest(BaseModel):
@@ -237,13 +264,12 @@ class CommandRequest(BaseModel):
 
 class CommandResponse(BaseModel):
     response: str
-    state: str
+    state:    str
 
 
 class StatusResponse(BaseModel):
     atlas_running: bool
-    state: str
-    pid: int | None
+    state:         str
 
 
 # ---------------------------------------------------------------------------
@@ -253,42 +279,43 @@ class StatusResponse(BaseModel):
 @app.get("/status", response_model=StatusResponse)
 async def get_status():
     """
-    Check if Atlas is running and what state it's in.
-    Flutter should call this on app launch to decide whether to show
-    a loading screen while Atlas boots.
+    Check if Atlas Observer is running.
+    Flutter calls this on launch to determine Atlas state.
     """
     return StatusResponse(
         atlas_running=atlas.is_running,
         state=atlas.state,
-        pid=atlas._process.pid if atlas._process else None,
     )
 
 
 @app.post("/command", response_model=CommandResponse, dependencies=[Depends(verify_api_key)])
 async def post_command(request: CommandRequest):
     """
-    Send a text command to Atlas and get a spoken response back.
+    Send a text command through the full Atlas Observer pipeline.
+
+    Everything works — calendar, email, vision, memory, code generation.
+    Same pipeline as voice input on desktop.
 
     Flutter flow:
         1. User speaks → Flutter STT → text
-        2. Flutter POST /command {"text": "what's on my calendar"}
-        3. Atlas processes → returns {"response": "You have 2 meetings..."}
-        4. Flutter passes response to Flutter TTS → phone speaks
+        2. POST /command {"text": "what's on my calendar"}
+        3. Observer processes → say() captures response
+        4. Returns {"response": "You have 2 meetings..."} to Flutter
+        5. Flutter TTS speaks it
 
-    This endpoint may take up to 30s for complex Mistral tasks.
-    Set your Flutter http client timeout accordingly.
+    Timeout: 60s for complex Mistral tasks.
     """
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Command text cannot be empty")
 
     try:
-        response = await atlas.process_command(request.text)
+        response = await atlas.send_command(request.text)
         return CommandResponse(
             response=response,
             state=atlas.state,
         )
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=f"Atlas unavailable: {e}")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Atlas error: {e}")
 
@@ -299,9 +326,10 @@ async def post_command(request: CommandRequest):
 
 if __name__ == "__main__":
     import uvicorn
+    port = load_config().get("api_server", {}).get("port", 8000)
     uvicorn.run(
-        "fastapi_server:app",
+        "api.fastapi_server:app",
         host="0.0.0.0",
-        port=PORT,
+        port=port,
         reload=False,
     )
