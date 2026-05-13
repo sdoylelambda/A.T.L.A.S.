@@ -2,6 +2,7 @@ import wave
 import io
 import simpleaudio as sa
 import numpy as np
+import asyncio
 
 from piper.voice import PiperVoice
 from piper.config import SynthesisConfig
@@ -39,7 +40,7 @@ class Mouth:
             self._current_play = sa.play_buffer(
                 audio_data, 1, 2, self.voice.config.sample_rate
             )
-            self._current_play.wait_done()
+            await asyncio.to_thread(self._current_play.wait_done)
         except Exception as e:
             # don't raise if we were intentionally stopped
             if self._current_play is None:
