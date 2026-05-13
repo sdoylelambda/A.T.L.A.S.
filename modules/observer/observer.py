@@ -29,6 +29,8 @@ class Observer:
         self.cancelled = False
         self._processing = False
         self._text_command_queue = asyncio.Queue()
+        self._api_response_queue = asyncio.Queue()  # ← add this line
+        self._api_request_pending = False  # ← add this line
         self._last_spoken = ""
         self._last_spoken_time = 0
         self._finishing = False
@@ -643,6 +645,10 @@ class Observer:
             print(f"[Observer] Pausing ears")
         self.ears.paused = True
         self._last_spoken = text.lower().strip()
+        # if request came from API, capture response instead of only speaking
+        if self._api_request_pending:
+            self._api_response_queue.put_nowait(text)
+            self._api_request_pending = False
         self._last_spoken_time = time.time()
         self.face.set_caption(text)  # ← show in GUI
         self.face.set_state("speaking")
