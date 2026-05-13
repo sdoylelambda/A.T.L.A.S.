@@ -153,12 +153,12 @@ All core functionality runs **completely locally** on your machine. No data leav
 - [x] Summarize PDF
 - [x] Persistent memory and user preferences
 - [x] Add way user wants to be addressed to config.yaml (sir, ma'am, John, Jane, etc.)
+- [x] REST interface for mobile clients
 
 ### Planned
 - [ ] Self-expanding fast keyword layer
 - [ ] RAG over local notes and files
 - [ ] Research topic 
-- [ ] REST interface for mobile clients
 - [ ] App - Mobile use for Android and iOS - native phone mic, speakers, camera
   - [ ] Phone camera integration via IP Webcam app
 - [ ] Push-to-talk mode
