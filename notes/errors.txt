@@ -1,3 +1,20 @@
+Escalates to Gemini - not connecting - missing keys? (no prompts on mobile gui)
+
+[Brain] Escalating to Mistral
+[Brain] num_ctx: 1024 (2 words)
+[Brain] Mistral raw response length: 161
+[Brain] Mistral raw response:  {
+  "summary": "Retrieving current events or news.",
+  "route": "gemini",
+  "steps": [
+    {"action": "web_search", "params": {"query": "current events"}}
+  ]
+}
+[Brain] Escalating to gemini
+INFO:     100.122.203.89:53336 - "POST /command HTTP/1.1" 500 Internal Server Error
+
+
+
 fix cut off JSON
 [Brain] Mistral raw response:  {
   "summary": "Creating a new project called lightbulbs with Python API for controlling smart lights.",

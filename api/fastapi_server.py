@@ -128,7 +128,7 @@ class AtlasProcess:
         print(f"[Atlas API] Atlas started (pid={self._process.pid})")
 
     def _load_brain(self):
-        """Import and initialise Brain directly for API calls."""
+        """Import and initialize Brain directly for API calls."""
         try:
             # Add project to path so modules resolve correctly
             if str(PROJECT_DIR) not in sys.path:
