@@ -287,6 +287,16 @@ async def get_status():
         state=atlas.state,
     )
 
+@app.post("/cancel", dependencies=[Depends(verify_api_key)])
+async def cancel_command():
+    """Cancel current Atlas command instantly."""
+    if atlas._observer is None:
+        raise HTTPException(status_code=503, detail="Atlas not running")
+    try:
+        atlas._observer._cancel_all()
+        return {"status": "cancelled"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/command", response_model=CommandResponse, dependencies=[Depends(verify_api_key)])
 async def post_command(request: CommandRequest):
