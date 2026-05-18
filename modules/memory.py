@@ -1,5 +1,7 @@
 import os
+
 from datetime import datetime
+from modules.utils import timer
 
 
 class AtlasMemory:
@@ -25,7 +27,8 @@ class AtlasMemory:
         """Initialize MemPalace searcher."""
         try:
             from mempalace.searcher import search_memories
-            self._search_fn = search_memories
+            with timer("STT", self.debug):
+                self._search_fn = search_memories
             print("[Memory] MemPalace initialized")
         except ImportError:
             print("[Memory] MemPalace not installed — pip install mempalace")

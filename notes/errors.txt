@@ -1,11 +1,49 @@
+
 MOBILE - ANDROID
-Seems response is not sent until after it is read on computer speakers
 
-Responds 2x on computer 1x on phone
+[Observer] Listening and responding...
+[Atlas API] Hello sir, what can I do for you.
+[Atlas API] Command queued: what is 5 plus 5
+INFO:     100.122.203.89:37868 - "POST /command HTTP/1.1" 504 Gateway Timeout
 
-timeout prevents complex responses
+still cut off after 2-3 seconds
+or
+STT: error_busy - on voice commands
+or
+'nothing heard' even tho app shows heard text
+or
+on button press get beep and message is not recorded - have to press button again and retry
 
 
+
+
+
+phone heard 'tell me a joke', computer heard 'tell me'
+
+[Observer] Text command: what's
+[Heard]: what's
+[Atlas API] Heard: what's
+[Memory] Searching for: what's
+
+always listen - every 5 seconds - ba ba beep
+response given on computer but not sent to phone
+then
+INFO:     100.122.203.89:54032 - "POST /command HTTP/1.1" 504 Gateway Timeout
+INFO:     100.122.203.89:54034 - "POST /command HTTP/1.1" 504 Gateway Timeout
+[Ears] Max speech duration reached.
+
+does not send approval request to mobile
+
+[Ears] Max speech duration reached. - with ptt enabled - pc speakers off
+
+still cuts off on ptt after about 2-3 seconds - no error now
+
+cancel button has no audio
+
+error - just says error no description of error
+
+
+[Memory] Context loaded: Wake-up text (~792 tokens): --- how many can be stored?
 
 calendar and follow-up commands don't work on termux -- they work as text commands on gui
 face.on_command = handle_text_input --- probably here on main.py

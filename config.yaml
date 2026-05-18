@@ -106,7 +106,7 @@ audio:
   # Max length of message that can be heard in seconds
   duration: 30
   mic_index: null
-  use_mock: false
+  use_mock: false  # true to disable ears
   calibration_interval: 30
   # give up waiting to START speaking after 3s
   pre_speech_timeout: 3.0
