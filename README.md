@@ -838,9 +838,11 @@ Phone camera  → QR code setup
 ```
 
 ### How it works
+```
 User speaks → Flutter STT → POST /command → Atlas computer
-Atlas processes (full pipeline) → response text
+Atlas processes (full pipeline) →
 Response text → Flutter TTS → phone speaks
+```
 
 ### Computer setup (one time)
 
