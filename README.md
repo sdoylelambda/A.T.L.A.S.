@@ -154,13 +154,13 @@ All core functionality runs **completely locally** on your machine. No data leav
 - [x] Persistent memory and user preferences
 - [x] Add way user wants to be addressed to config.yaml (sir, ma'am, John, Jane, etc.)
 - [x] REST interface for mobile clients
+- [x] App - Mobile client for Android and iOS - native phone mic, speakers, camera
 
 ### Planned
 - [ ] Self-expanding fast keyword layer
 - [ ] RAG over local notes and files
 - [ ] Research topic 
-- [ ] App - Mobile use for Android and iOS - native phone mic, speakers, camera
-  - [ ] Phone camera integration via IP Webcam app
+- [ ] Phone camera integration via IP Webcam app
 - [ ] Push-to-talk mode
 - [ ] Slack alerts
 - [ ] Text alerts
@@ -826,18 +826,57 @@ For best results — use SSH for voice commands at home, standalone for text com
 
 ---
 
-### Future: Phone as Full Interface
+## Mobile Client (Flutter)
 
-With phone mic, speakers, and camera integrated, the GUI becomes optional:
+Atlas is fully controllable from your phone over Tailscale.
+The phone handles STT and TTS on-device — only text travels over the network.
 ```
-Phone mic    → wake word + voice commands
-Desktop GPU  → all AI processing
-Phone speaker → spoken responses
-Phone camera → vision and object recognition
+Phone mic     → on-device STT → text command
+Desktop GPU   → all AI processing (Mistral, phi3, Brain, everything)
+Phone speaker → on-device TTS speaks response
+Phone camera  → QR code setup
 ```
 
-An always-on AI assistant accessible from anywhere — no screen required.
-See roadmap: FastAPI server → Flutter mobile app.
+### How it works
+User speaks → Flutter STT → POST /command → Atlas computer
+Atlas processes (full pipeline) → response text
+Response text → Flutter TTS → phone speaks
+
+### Computer setup (one time)
+
+**1. Install dependencies**
+```bash
+pip install fastapi uvicorn qrcode Pillow --break-system-packages
+```
+
+**2. Generate API key**
+```bash
+openssl rand -hex 32 > ~/.config/atlas/api_key
+chmod 600 ~/.config/atlas/api_key
+```
+
+**3. Get your Tailscale IP**
+```bash
+tailscale ip -4
+```
+
+**4. Start the API server**
+```bash
+cd ~/dev/A.T.L.A.S.
+uvicorn api.fastapi_server:app --host 0.0.0.0 --port 8000
+```
+
+**5. Auto-start at boot (recommended)**
+```bash
+sudo cp api/atlas-api.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable atlas-api
+sudo systemctl start atlas-api
+sudo systemctl status atlas-api
+```
+
+### Phone setup (one time)
+https://github.com/sdoylelambda/A.T.L.A.S.-mobile
 
 ---
 
