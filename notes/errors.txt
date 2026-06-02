@@ -1,6 +1,13 @@
 
 MOBILE - ANDROID
 
+Start PC
+pkill -f uvicorn
+cd /home/zero/dev/A.T.L.A.S.
+TSHIP=$(tailscale ip -4 | head -n1)
+.venv/bin/uvicorn api.fastapi_server:app --host $TSHIP --port 8000
+
+
 [Observer] Listening and responding...
 [Atlas API] Hello sir, what can I do for you.
 [Atlas API] Command queued: what is 5 plus 5
