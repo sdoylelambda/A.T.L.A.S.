@@ -175,3 +175,8 @@ browser:
   use_chrome: false
   firefox_profile_path: "/home/zero/.mozilla/firefox/jarvis"
   use_firefox: true
+
+# ---- LED Lights ----
+light:
+  enabled: true
+  device_address: null  # set after first successful connect e.g. "B0:E9:FE:C7:46:F7"
