@@ -12,11 +12,11 @@ class Ears:
                  pre_speech_timeout=3.0, max_speech_duration=25.0,
                  silence_seconds=1.5, config=None):
 
+        self.debug = debug
         self.audio_stream = None
         self.chunk_size = chunk_size
         self.rate = rate
         self.paused = False
-        self.debug = debug
         self.speaking = False
         self.use_mock = config.get("audio", {}).get("use_mock", False) if config else False
 
@@ -140,8 +140,8 @@ class Ears:
         if self.noise_floor > 5000:
             if self.debug:
                 print(f"[Ears] WARNING: Noise floor too high ({int(self.noise_floor)}), using static thresholds")
-            self.start_threshold = 8000
-            self.stop_threshold = 4000
+            self.start_threshold = self.noise_floor * 1.25
+            self.stop_threshold = self.noise_floor * 1.25
         else:
             self.start_threshold = self.noise_floor * 4.0
             self.stop_threshold = self.noise_floor * 2.0
