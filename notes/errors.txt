@@ -1,3 +1,26 @@
+[] - have gui on pc match gui on android
+
+[] - android button to pop up console log
+
+[] - android button to see connectivity to pc status
+
+
+[] - [Ears] Max speech duration reached. -- both mobile and pc -- keeps looping
+
+[Heard]: what's on my calendar tomorrow?
+[Calendar] tomorrow querying timeMin=2026-06-13T00:00:00-04:00 timeMax=2026-06-13T23:59:59-04:00
+[Calendar] found 0 events
+[Observer] Text command: 2+2     --- this should fire while loading the calendar
+
+[Brain] Mistral raw response:  {
+  "summary": "Generating Python script for simple web scraping of star wars characters.",
+  "route": "local",
+  "steps": [
+    {"action": "generate_code", "params": {"path": "sw_characters.py", "description": "Python script using BeautifulSoup to scrape Star Wars characters from official website"}}
+  ]
+}
+[Observer] Text command: what is 4 + 4
+[Heard] what is 4 + 4   --- does not answer this
 
 MOBILE - ANDROID
 
