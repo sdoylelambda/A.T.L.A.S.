@@ -139,7 +139,7 @@ class Ears:
 
         if self.noise_floor > 5000:
             if self.debug:
-                print(f"[Ears] WARNING: Noise floor too high ({int(self.noise_floor)}), using static thresholds")
+                print(f"[Ears] WARNING: Noise floor high ({int(self.noise_floor)})")
             self.start_threshold = self.noise_floor * 1.25
             self.stop_threshold = self.noise_floor * 1.25
         else:
