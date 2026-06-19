@@ -138,49 +138,112 @@ def check_ssh_config() -> dict:
         "raw":      settings,
     }
 
-def check_listening_ports() -> dict:
-    """List listening ports, classify by bind address — loopback-only
-    ports are not a remote risk and shouldn't tank the score."""
-    ok, output = _run(["ss", "-tuln"])
-    if not ok:
-        return {"status": "unknown", "detail": f"Could not list ports: {output}"}
+KNOWN_SAFE_PROCESSES = {
+    "avahi-daemon":     "mDNS / device discovery — normal on Linux desktops",
+    "systemd-resolve":  "DNS resolver stub — normal",
+    "systemd-resolved": "DNS resolver stub — normal",
+    "cupsd":            "Printing service — normal if you use a printer",
+    "cups-browsed":     "CUPS network printer discovery — normal",
+    "ollama":           "Atlas's local LLM backend — expected",
+    "chrome":           "Chrome browser — ephemeral ports, normal",
+    "code":             "VS Code — ephemeral ports, normal",
+    "dart":             "Flutter/Dart dev tooling — normal during development",
+    "adb":              "Android Debug Bridge — normal during development",
+    "kdeconnectd":      "KDE Connect / phone integration",
+    "NetworkManager":   "Network management — normal",
+    "dnsmasq":          "DHCP/DNS for VM or container networking",
+    "dhclient":         "DHCP client — normal",
+    "chronyd":          "Time sync — normal",
+    "firefox-bin": "Firefox — likely WebRTC ephemeral ports from a video/voice call tab, normal",
+    "firefox":     "Firefox — likely WebRTC ephemeral ports from a video/voice call tab, normal",
+}
 
-    findings  = []
-    warnings  = []
-    info      = []
+
+def _dedupe(seq: list) -> list:
+    seen, out = set(), []
+    for item in seq:
+        if item not in seen:
+            seen.add(item)
+            out.append(item)
+    return out
+
+
+def check_listening_ports() -> dict:
+    ok, output = _run(["sudo", "-n", "ss", "-tulnp"])
+    used_sudo = ok
+    if not ok:
+        ok, output = _run(["ss", "-tuln"])
+        if not ok:
+            return {"status": "unknown", "detail": f"Could not list ports: {output}"}
+
+    findings, warnings, info = [], [], []
     open_ports = set()
+    exposed_ports = []   # ← only genuinely risky ports go here
+
+    def _is_loopback(addr: str) -> bool:
+        a = addr.strip("[]")
+        return (
+                a.startswith("127.") or
+                a in ("::1", "localhost") or
+                a.startswith("::ffff:127.")
+        )
+
+    def _is_tailscale_addr(addr: str) -> bool:
+        a = addr.strip("[]")
+        return a.startswith("100.") or a.startswith("fd7a:115c:a1e0")
 
     for line in output.splitlines()[1:]:
-        match = re.search(r"(\S+):(\d+)\s+\S+\s*$", line)
-        if not match:
+        cols = line.split()
+        if len(cols) < 5:
             continue
-        addr, port = match.group(1), int(match.group(2))
+        local = cols[4]
+        if ":" not in local:
+            continue
+        addr, _, port_str = local.rpartition(":")
+        if not port_str.isdigit():
+            continue
+        port = int(port_str)
         open_ports.add(port)
+
+        proc_name = None
+        if used_sudo and len(cols) >= 6:
+            m = re.search(r'\("([^"]+)"', cols[-1])
+            if m:
+                proc_name = m.group(1)
 
         if port in EXPECTED_PORTS:
             findings.append(f"Port {port} ({EXPECTED_PORTS[port]}) — expected")
             continue
 
-        # classify by bind address
-        if addr.startswith("127.") or addr in ("[::1]", "localhost"):
-            info.append(f"Port {port} — loopback only, not network exposed")
-        elif addr.startswith("100."):
-            info.append(f"Port {port} — bound to Tailscale interface only")
+        label = f"Port {port}" + (f" ({proc_name})" if proc_name else "")
+
+        if proc_name and proc_name in KNOWN_SAFE_PROCESSES:
+            info.append(f"{label} — {KNOWN_SAFE_PROCESSES[proc_name]}")
+        elif _is_loopback(addr):
+            info.append(f"{label} — loopback only, not network exposed")
+        elif _is_tailscale_addr(addr):
+            info.append(f"{label} — bound to Tailscale interface only")
+        elif addr.startswith("[fe80") or addr.startswith("fe80"):
+            info.append(f"{label} — link-local IPv6, not routable beyond this network segment")
         elif addr in ("*", "0.0.0.0", "[::]", "::"):
-            warnings.append(f"Port {port} — open on ALL interfaces (worth checking)")
+            warnings.append(f"{label} — open on ALL interfaces (worth checking)")
+            exposed_ports.append(port)
         else:
-            warnings.append(f"Port {port} — open on {addr} (LAN-reachable, worth checking)")
+            warnings.append(f"{label} — open on {addr} (LAN-reachable, worth checking)")
+            exposed_ports.append(port)
 
     missing = sorted(p for p in EXPECTED_PORTS if p not in open_ports)
     for port in missing:
         warnings.append(f"Expected port not listening: {port} ({EXPECTED_PORTS[port]})")
 
     return {
-        "status":     "warning" if warnings else "good",
-        "findings":   findings,
-        "warnings":   warnings,
-        "info":       info,
-        "open_ports": sorted(open_ports),
+        "status":        "warning" if warnings else "good",
+        "findings":      _dedupe(findings),
+        "warnings":      _dedupe(warnings),
+        "info":          _dedupe(info),
+        "open_ports":    sorted(open_ports),
+        "exposed_ports": sorted(set(exposed_ports)),
+        "process_lookup_available": used_sudo,
     }
 
 def check_tailscale() -> dict:
@@ -283,10 +346,10 @@ def check_failed_logins() -> dict:
 def _build_snapshot(results: dict) -> dict:
     """Extract the comparable facts from a full audit for baseline storage."""
     return {
-        "open_ports":     results["ports"].get("open_ports", []),
-        "ssh_settings":    results["ssh"].get("raw", {}),
+        "exposed_ports": results["ports"].get("exposed_ports", []),
+        "ssh_settings": results["ssh"].get("raw", {}),
         "tailscale_online": "Tailscale connected" in results["tailscale"].get("findings", []),
-        "timestamp":       datetime.now().isoformat(),
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -307,14 +370,14 @@ def _save_baseline(snapshot: dict):
 def _diff_baseline(old: dict, new: dict) -> list[str]:
     changes = []
 
-    old_ports = set(old.get("open_ports", []))
-    new_ports = set(new.get("open_ports", []))
+    old_ports = set(old.get("exposed_ports", []))
+    new_ports = set(new.get("exposed_ports", []))
     added   = new_ports - old_ports
     removed = old_ports - new_ports
     if added:
-        changes.append(f"New listening port(s) since last check: {sorted(added)}")
+        changes.append(f"New exposed port(s) — worth investigating: {sorted(added)}")
     if removed:
-        changes.append(f"Port(s) no longer listening: {sorted(removed)}")
+        changes.append(f"Previously exposed port(s) no longer open: {sorted(removed)}")
 
     old_ssh = old.get("ssh_settings", {})
     new_ssh = new.get("ssh_settings", {})
