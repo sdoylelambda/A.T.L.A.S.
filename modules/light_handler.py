@@ -30,17 +30,20 @@ LIGHT_KEYWORDS = [
 
 
 class LightHandler:
-    def __init__(self, config):
-        self.config  = config
-        self._light  = LightController(config)
-        self.enabled = config.get("light", {}).get("enabled", True)
+    def __init__(self, config, observer):
+        self.config   = config
+        self.observer = observer
+        self._light   = LightController(config)
+        self.enabled  = config.get("light", {}).get("enabled", True)
 
     def matches(self, text):
         if not self.enabled:
             return False
         return any(kw in text.lower() for kw in LIGHT_KEYWORDS)
 
-    async def handle(self, text, observer):
+    async def handle(self, text):
+        if not self.matches(text):
+            return ""
         if not self.enabled:
             return "Light control is disabled in config."
         print(f"[Light] Handling: {text}")
@@ -48,8 +51,9 @@ class LightHandler:
 
 
 def register(observer, config):
-    handler = LightHandler(config)
+    handler = LightHandler(config, observer)
     for keyword in LIGHT_KEYWORDS:
         observer.register_handler(keyword, handler.handle)
     print(f"[Light] Handler registered ({len(LIGHT_KEYWORDS)} keywords)")
     return handler
+

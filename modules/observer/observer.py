@@ -80,6 +80,12 @@ class Observer:
 
         self.feature_builder.attach()
 
+        from modules.observer.security_handler import register as register_security
+        self._security_handler = register_security(self, config)
+
+        from modules.light_handler import register as register_led
+        self._security_handler = register_led(self, config)
+
     async def listen_and_respond(self):
         self.face.set_state("thinking")
         # init ears AND calibrate before greeting
@@ -307,6 +313,7 @@ class Observer:
                     continue
 
                 # 🧩 Dynamic handlers (Feature Builder)
+                handled = False
                 for name, handler in self.handlers.items():
                     try:
                         result = handler(text)
@@ -316,12 +323,16 @@ class Observer:
 
                         if result:
                             await self.say(result)
-                            continue
+                            handled = True
+                            break
 
                     except Exception as e:
                         print(f"[Observer] Handler error ({name}): {e}")
 
-                # 🚀 Command handling
+                if handled:
+                    continue
+
+                    # 🚀 Command handling
                 self.face.set_state("thinking")
                 try:
                     handled = await self.launcher.dispatch(text)
