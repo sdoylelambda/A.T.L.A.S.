@@ -122,7 +122,7 @@ async def handle_document_command(text: str, face, mouth, brain, ears=None, stt=
 
     # ── PDF summarization ─────────────────────────────────────────────────
     if any(phrase in text for phrase in [
-        "summarize pdf", "summarize the pdf", "read the pdf",
+        "summarize pdf", "summarize the pdf", "read the pdf", "read me the pdf",
         "what does the pdf say", "summarize last pdf",
         "what's in the pdf", "read this pdf", "summarize document",
         "what's in the document", "read the document"
@@ -141,6 +141,19 @@ async def handle_document_command(text: str, face, mouth, brain, ears=None, stt=
             await _say(face, mouth,
                 "Couldn't extract text from that PDF, sir. "
                 "It may be a scanned image — try a text-based PDF.")
+            return True
+
+        if any(phrase in text for phrase in [
+            "read me the pdf",
+            ]):
+            chunks = [
+                pdf_text[i:i + 2000]
+                for i in range(0, len(pdf_text), 2000)
+            ]
+
+            for chunk in chunks:
+                await _say(face, mouth, chunk)
+
             return True
 
         # extract focus instruction if any
