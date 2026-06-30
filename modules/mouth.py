@@ -4,12 +4,17 @@ import simpleaudio as sa
 import numpy as np
 import asyncio
 
+from pathlib import Path
 from piper.voice import PiperVoice
 from piper.config import SynthesisConfig
 
 
 class Mouth:
-    def __init__(self, model_path="modules/voices/british_man_GB-alan-medium.onnx",  # add voices to config to switch
+    def __init__(self, model_path= (
+                Path(__file__).resolve().parent
+                / "voices"
+                / "british_man_GB-alan-medium.onnx"
+            ),  # add voices to config to switch
                  speech_rate=0.8, use_mock=False):
         self.use_mock = use_mock
         self.speech_rate = speech_rate
