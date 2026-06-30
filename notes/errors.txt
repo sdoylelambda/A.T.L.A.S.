@@ -1,3 +1,21 @@
+ssh zero@$(tailscale ip -4) '
+systemd-run --user --pty \
+  --setenv=DISPLAY=:1 \
+  --setenv=WAYLAND_DISPLAY=wayland-1 \
+  --setenv=XDG_RUNTIME_DIR=/run/user/1000 \
+  --setenv=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus \
+  cd /home/zero/dev/A.T.L.A.S./.venv/bin/python \
+  cd /home/zero/dev/A.T.L.A.S. && python main.py
+'
+ssh zero@$(tailscale ip -4) '
+systemd-run --user --wait \
+/bin/sh -c 'sleep 30'
+
+
+
+
+[] - if atlas is running on pc, join -- don't create new instance
+
 [] - have gui on pc match gui on android
 
 [] - android button to pop up console log
