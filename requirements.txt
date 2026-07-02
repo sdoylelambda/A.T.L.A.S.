@@ -242,3 +242,4 @@ pypdf
 mempalace
 fastapi
 bleak
+uvicorn

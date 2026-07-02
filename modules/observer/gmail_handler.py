@@ -14,7 +14,7 @@ async def handle_gmail_command(text: str, gmail, drafter, calendar, say, ears, s
     # fast — no model
     if any(phrase in text for phrase in [
         "check my emails", "read my emails", "any new emails", "what's in my inbox", "check my email"
-        "check my inbox", "any unread emails", "what emails do i have", "check my mail"
+        "check my inbox", "any unread emails", "what emails do i have", "check my mail", "check my gmail"
     ]):
         emails = await asyncio.to_thread(gmail.get_unread, 5)
         summary = drafter.summarize_inbox_fast(emails)  # ← fast, no model

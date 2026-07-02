@@ -38,3 +38,10 @@ workspace/
 
 # Demo screenshots
 # screenshots/
+
+main.py
+
+api/fastapi_server.py
+
+config/api_keys.py
+

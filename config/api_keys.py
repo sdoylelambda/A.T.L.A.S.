@@ -1,9 +1,13 @@
 import keyring
 import getpass
 import platform
+from pathlib import Path
 import yaml
 
-with open("config.yaml") as f:
+
+CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.yaml"
+
+with CONFIG_PATH.open() as f:
     config = yaml.safe_load(f)
 
 SERVICE_NAME = config.get("personalize", {}).get("ai_assistant_name", "ATLAS")
