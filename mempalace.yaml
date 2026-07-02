@@ -1,0 +1,40 @@
+wing: a.t.l.a.s.
+rooms:
+- name: modules
+  description: Files from modules/
+  keywords:
+  - modules
+  - modules
+- name: configuration
+  description: Files from config/
+  keywords:
+  - configuration
+  - config
+- name: screenshots
+  description: Files from screenshots/
+  keywords:
+  - screenshots
+  - screenshots
+- name: testing
+  description: Files from tests/
+  keywords:
+  - testing
+  - tests
+- name: workspace
+  description: Files from workspace/
+  keywords:
+  - workspace
+  - workspace
+- name: documentation
+  description: Files from notes/
+  keywords:
+  - documentation
+  - notes
+- name: frontend
+  description: Files from frontend/
+  keywords:
+  - frontend
+  - frontend
+- name: general
+  description: Files that don't fit other rooms
+  keywords: []

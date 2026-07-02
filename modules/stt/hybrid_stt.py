@@ -1,21 +1,24 @@
 import numpy as np
 import whisper
-from faster_whisper import WhisperModel
 import time
 import warnings
-warnings.filterwarnings("ignore", category=UserWarning)  # ignore GPU not in use warning
 
+from faster_whisper import WhisperModel
+
+warnings.filterwarnings("ignore", category=UserWarning)  # ignore GPU not in use warning
 
 SHORT_THRESHOLD_SECONDS = 10  # use whisper for >10s, faster-whisper for shorter
 
+
 class HybridSTT:
     def __init__(self, whisper_model="small", fw_model="small", use_gpu=False):
+        self.debug = False
         device = "cuda" if use_gpu else "cpu"
 
-        print("[STT] Loading Whisper...")
+        print(f"[STT] Loading Whisper model {whisper_model} model...")
         self.whisper = whisper.load_model(whisper_model, device=device)
 
-        print("[STT] Loading Faster-Whisper...")
+        print(f"[STT] Loading Faster-Whisper {fw_model} model...")
         self.faster = WhisperModel(
             fw_model,
             device=device,
@@ -29,16 +32,19 @@ class HybridSTT:
     def transcribe(self, audio_bytes, duration):
         """Route to whisper or faster-whisper based on clip duration."""
         if duration < 0.3:
-            print("[STT] Audio too short, skipping.")
+            if self.debug:
+                print("[STT] Audio too short, skipping.")
             return ""
 
         audio_np = self._to_float32(audio_bytes)
 
         if duration > SHORT_THRESHOLD_SECONDS:
-            print(f"[STT] Using Whisper ({duration:.1f}s)")
+            if self.debug:
+                print(f"[STT] Using Whisper ({duration:.1f}s)")
             return self._transcribe_long(audio_np)
         else:
-            print(f"[STT] Using Faster-Whisper ({duration:.1f}s)")
+            if self.debug:
+                print(f"[STT] Using Faster-Whisper ({duration:.1f}s)")
             return self._transcribe_short(audio_np)
 
     def _transcribe_short(self, audio_np):
@@ -52,7 +58,8 @@ class HybridSTT:
             fp16=False
         )
         transcribe_time = time.time() - transcribe_time
-        print('[STT] Transcription time: {:.1f}s'.format(transcribe_time))
+        if self.debug:
+            print('[STT] Transcription time: {:.1f}s'.format(transcribe_time))
         return result.get("text", "").strip()
 
     def _transcribe_long(self, audio_np):
@@ -64,5 +71,6 @@ class HybridSTT:
             vad_filter=True
         )
         transcribe_time = time.time() - transcribe_time
-        print('[STT] Transcription time: {:.1f}s'.format(transcribe_time))
+        if self.debug:
+            print('[STT] Transcription time: {:.1f}s'.format(transcribe_time))
         return " ".join(seg.text for seg in segments).strip()

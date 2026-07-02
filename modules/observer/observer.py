@@ -1,0 +1,760 @@
+import time
+import asyncio
+import threading
+
+from modules.ears import Ears
+from modules.mouth import Mouth
+from modules.brain import Brain
+from modules.eyes import Eyes
+from modules.stt.hybrid_stt import HybridSTT
+from modules.app_launcher import AppLauncher
+from modules.tool_executor import ToolExecutor
+from modules.browser_controller import BrowserController
+from modules.utils import timer
+from modules.calendar_controller import CalendarModule
+from modules.gmail.gmail_controller import GmailModule
+from modules.gmail.email_drafter import EmailDrafter
+from config.api_keys import set_key_request_callback
+from custom_exceptions import PermissionRequired, ModelUnavailable, PlanExecutionError
+
+
+class Observer:
+    def __init__(self, face_controller, window_controller, config):
+        self.debug = False
+        self.face = face_controller
+        self.window_controller = window_controller
+        self.config = config
+        self.response_name = config["personalize"].get("response_name", "")
+        self.paused = False
+        self.cancelled = False
+        self._processing = False
+        self._text_command_queue = asyncio.Queue()
+        self._api_response_queue = asyncio.Queue()  # ← add this line
+        self._api_request_pending = False  # ← add this line
+        self._last_spoken = ""
+        self._last_spoken_time = 0
+        self._finishing = False
+        self._key_event = threading.Event()
+        self._pending_key = None
+        self._waiting_for_key = False
+        self._current_state = None
+        set_key_request_callback(self._request_key_via_gui)
+
+        self.brain = Brain(config)
+        self.ears = Ears()  # pass config
+        self.mouth = Mouth(use_mock=config["audio"].get("use_mock", False))
+        vision_enabled = config.get("vision", {}).get("enabled", False)
+        self.eyes = Eyes(config) if vision_enabled else None
+        self.browser_controller = BrowserController(config)
+        self.launcher = AppLauncher(window_controller, self.browser_controller)
+        self.executor = ToolExecutor(self.launcher, self.browser_controller, self.brain)
+        calendar_enabled = config.get("integrations", {}).get("google_calendar", {}).get("enabled", False)
+        self.calendar = CalendarModule(config) if calendar_enabled else None
+        gmail_enabled = config.get("integrations", {}).get("gmail", {}).get("enabled", False)
+        self.gmail = GmailModule(config) if gmail_enabled else None
+        self.drafter = EmailDrafter(config) if self.gmail else None
+
+        self.stt = HybridSTT(
+            whisper_model=config["stt"].get("whisper_model", "small"),
+            fw_model=config["stt"].get("fw_model", "small"),
+            use_gpu=config["system"].get("use_gpu", False),
+        )
+
+        from modules.memory import AtlasMemory
+        self.memory = AtlasMemory(config)
+
+        if self.memory.enabled:
+            ctx = self.memory.get_wake_up_context()
+            if ctx:
+                print(f"[Memory] Context loaded: {ctx[:100]}")
+
+        from modules.feature_builder import FeatureBuilder
+
+        self.handlers = {}
+        self.feature_builder = FeatureBuilder(
+            brain=self.brain,
+            tool_executor=self.executor,
+            observer=self,
+            config=config
+        )
+
+        self.feature_builder.attach()
+
+        from modules.observer.security_handler import register as register_security
+        self._security_handler = register_security(self, config)
+
+        from modules.light_handler import register as register_led
+        self._security_handler = register_led(self, config)
+
+    async def listen_and_respond(self):
+        self.face.set_state("thinking")
+        # init ears AND calibrate before greeting
+        try:
+            await asyncio.wait_for(self.ears.listen(), timeout=6.0)  # longer to allow calibration
+        except asyncio.TimeoutError:
+            pass
+
+        print("[Observer] Listening and responding...")
+        asyncio.create_task(self.ears.auto_calibrate(interval=30))
+        await self.say(f"Hello {self.response_name}, what can I do for you.")
+        self.face.set_state("listening")
+
+        while True:
+            try:
+                if self.paused:
+                    self.face.set_state("sleeping")
+                elif not self._processing and not self._finishing:
+                    self.face.set_state("listening")
+
+                # check for text input before listening to mic
+                try:
+                    text = self._text_command_queue.get_nowait()
+                    print(f"[Observer] Text command: {text}")
+                except asyncio.QueueEmpty:
+                    # normal voice path
+                    audio_bytes, duration = await self.ears.listen()
+                    if not audio_bytes:
+                        await asyncio.sleep(0.05)
+                        continue
+                    with timer("STT", self.debug):
+                        text = self.stt.transcribe(audio_bytes, duration)
+                    if not text:
+                        continue
+                    text = text.lower().strip()
+
+                    # filter hallucinations
+                    words = text.split()
+                    unique = set(words)
+                    if len(unique) <= 2 and len(words) > 6:
+                        print(f"[STT] Hallucination detected, skipping: {text[:50]}")
+                        continue
+
+                    if len(words) >= 3 and len(unique) == 1:
+                        print(f"[STT] Repetition hallucination detected, skipping: {text[:50]}")
+                        continue
+
+                    # filter useless single words that aren't commands
+                    known_short = [
+                        # cancel/control
+                        "yes", "no", "cancel", "stop", "pause",
+                        "never mind", "forget it", "escape", "deselect",
+                        "first", "second", "third", "forth", "fifth", "break"
+                        # browser navigation
+                        "zoom in", "zoom out", "zoom reset", "go down", "go up", "go back", "go forward",
+                        "new tab", "close tab", "refresh", "reload", "new window"
+                        "full screen", "fullscreen", "find", "search on page",
+                        "scroll up", "scroll down", "next", "enter", "press enter",
+                        "copy", "paste", "select", "click", "escape",
+                        # app shortcuts
+                        "save", "run", "clear",
+                        # build commands
+                        "y", "yeah", "yep", "do",  "it", "proceed",
+                        "sure", "go", "ahead", "affirmative", "correct",
+                        "build", "sounds", "good"
+                        # calendar commands
+                        "today's events", "next event", "what's next", "this week", "upcoming events"
+                        # brain commands
+                        "remember that", "remember this", "make a note", "don't forget", "keep in mind", "recall"
+                    ]
+                    if len(words) <= 1 and not any(cmd in text for cmd in known_short):
+                        print(f"[STT] Too short, skipping: {text}")
+                        continue
+
+                    # filter echo of last spoken phrase
+                    if (self._last_spoken and
+                            time.time() - self._last_spoken_time < 5.0 and
+                            self._similarity(text, self._last_spoken) > 0.6):
+                        print(f"[Observer] Echo detected, skipping: {text[:50]}")
+                        continue
+
+                print(f"[Heard]: {text}")
+                self.face.set_heard(text)
+
+                if self.debug:
+                    if self._last_spoken:
+                        sim = self._similarity(text, self._last_spoken)
+                        print(f"[Observer] Similarity: {sim:.2f} last='{self._last_spoken[:40]}'")
+                        if time.time() - self._last_spoken_time < 5.0 and sim > 0.6:
+                            print(f"[Observer] Echo detected, skipping")
+                            continue
+
+                # ❌ Cancel command
+                if any(word in text for word in ["cancel", "stop", "never mind", "forget it"]):
+                    self.mouth.stop()  # ← interrupt speech instantly
+                    self.brain.cancel()
+                    self.face.set_state("listening")
+                    await self.say("Cancelled.")
+                    continue
+
+                # 🔑 Wake hot words
+                wake_word = self.config.get("personalize", {}).get("ai_assistant_name", "atlas").lower()
+
+                if wake_word in text or "you there" in text or "wake up" in text or "atlas" in text:
+                    if self.paused:
+                        self.paused = False
+                        self.face.set_state("thinking")
+                        with timer("TTS wake", self.debug):
+                            await self.say(f"For you {self.response_name}, always.")
+                        self.face.set_state("listening")
+                    continue
+
+                # 😴 Pause command
+                if any(phrase in text for phrase in ["take a break", "a break", "stop listening", "go to sleep"]):
+                    self.paused = True
+                    self.face.set_state("sleeping")
+                    with timer("TTS sleep", self.debug):
+                        await self.say("Going on a break.")
+                    continue
+
+                if self.paused:
+                    continue
+
+                # 🧠 Memory commands
+                if any(phrase in text for phrase in [
+                    "remember that", "remember this", "make a note",
+                    "don't forget", "keep in mind", "i like", "i don't like"
+                ]):
+                    memory_text = text
+                    for phrase in ["remember that", "remember this", "make a note",
+                                   "don't forget", "keep in mind"]:
+                        memory_text = memory_text.replace(phrase, "").strip()
+                    if self.memory.remember(memory_text):
+                        await self.say(f"Got it, {self.response_name}. I'll remember that.", next_state="listening")
+                    else:
+                        await self.say(f"Memory is not enabled, {self.response_name}.", next_state="listening")
+                    continue
+
+                if any(phrase in text for phrase in [
+                    "what do you remember", "what do you know about",
+                    "do you remember", "recall", "do i prefer"
+                ]):
+                    query = text
+                    for phrase in ["what do you remember about", "what do you know about",
+                                   "do you remember", "recall", "do i prefer"]:
+                        query = query.replace(phrase, "").strip()
+                    result = self.memory.recall(query)
+                    if result:
+                        speech = self.memory.format_for_speech(result)
+                        await self.say(speech, next_state="listening")
+                    else:
+                        await self.say(f"I don't have anything on that, {self.response_name}.", next_state="listening")
+                    continue
+
+                # 📅 Calendar commands
+                if self.calendar:
+                    from modules.observer.calendar_handler import handle_calendar_command
+
+                    try:
+                        if await handle_calendar_command(
+                                text, self.calendar, self.say, self.ears, self.stt, self.config
+                        ):
+                            continue
+
+                    except Exception as e:
+                        if "Token has been expired or revoked" in str(e):
+                            print("Regenerating token...")
+
+                            await self.calendar.regenerate_token()
+
+                            try:
+                                if await handle_calendar_command(
+                                        text, self.calendar, self.say, self.ears, self.stt, self.config
+                                ):
+                                    continue
+                            except Exception as retry_error:
+                                print(f"Retry failed: {retry_error}")
+                        else:
+                            print(f"Calendar error: {e}")
+
+
+                # 📧 Gmail commands
+                if self.gmail:
+                    from modules.observer.gmail_handler import handle_gmail_command
+                    if await handle_gmail_command(
+                            text, self.gmail, self.drafter,
+                            self.calendar, self.say, self.ears, self.stt, self.config
+                    ):
+                        continue
+
+                # 👁️ Vision commands
+                if self.eyes:
+                    from modules.observer.eyes_handler import handle_vision_command
+                    if await handle_vision_command(text, self.face, self.mouth, self.eyes, self.debug):
+                        continue
+
+                # 📄 Document commands
+                from modules.observer.document_handler import handle_document_command
+                if await handle_document_command(text, self.face, self.mouth, self.brain, self.ears, self.stt,
+                                                 self.say,
+                                                 self.debug):
+                    continue
+
+                # 🧩 Feature Builder
+                if text.lower().startswith("add a new feature"):
+                    self.face.set_state("thinking")
+                    response = await self.feature_builder.handle_request(text)
+                    await self.say(response)
+
+                    # wait for confirmation (reuse your existing flow)
+                    await self.say(f"Say yes to confirm or anything else to cancel, {self.response_name}.")
+
+                    try:
+                        confirm = self._text_command_queue.get_nowait()
+                    except:
+                        audio_bytes, duration = await self.ears.listen()
+                        confirm = self.stt.transcribe(audio_bytes, duration).lower().strip() if audio_bytes else ""
+
+                    if confirm in ["yes", "yeah", "do it", "go ahead"]:
+                        result = await self.feature_builder.execute(True)
+                    else:
+                        result = await self.feature_builder.execute(False)
+
+                    await self.say(result)
+                    continue
+
+                # 🧩 Dynamic handlers (Feature Builder)
+                handled = False
+                for name, handler in self.handlers.items():
+                    try:
+                        result = handler(text)
+
+                        if asyncio.iscoroutine(result):
+                            result = await result
+
+                        if result:
+                            await self.say(result)
+                            handled = True
+                            break
+
+                    except Exception as e:
+                        print(f"[Observer] Handler error ({name}): {e}")
+
+                if handled:
+                    continue
+
+                    # 🚀 Command handling
+                self.face.set_state("thinking")
+                try:
+                    handled = await self.launcher.dispatch(text)
+                except Exception as e:
+                    print(f"[Launcher Error]: {e}")
+                    handled = False
+
+                # Atlas's abilities
+                if any(phrase in text for phrase in [
+                    "what can you do", "what are you capable of",
+                    "help", "capabilities", "what do you know"
+                ]):
+                    await self.say(self._build_capabilities(), next_state="listening")
+                    continue
+
+                # 🔊 TTS response
+                with timer("Total command", self.debug):
+                    if handled:
+                        current_app = self.launcher.get_current_app()
+                        if current_app and current_app != "browser":
+                            self.window_controller.update_active_window(current_app)
+                        await self.say(f"I have: {text}")
+                    else:
+                        await self.handle_brain_command(text)
+
+                if not self._processing:
+                    self.face.set_state("listening")
+
+            except Exception as e:
+                print(f"[Observer Error]: {e}")
+                self.face.set_state("error")
+                await asyncio.sleep(2)  # show error face for 2 seconds before going back to listening
+
+            await asyncio.sleep(0.01)
+
+    async def handle_brain_command(self, command: str):
+        """Main entry point for brain commands."""
+        self._processing = True
+        self.cancelled = False
+        cancel_task = asyncio.create_task(self._listen_for_cancel())
+        notice_task = asyncio.create_task(self._thinking_notice())
+
+        # inject relevant memories into command context
+        if self.memory and self.memory.enabled:
+            context = self.memory.recall(command, n=2)
+            if context:
+                command_with_context = f"Relevant context:\n{context}\n\nCommand: {command}"
+                print(f"[Memory] Injecting context for: {command[:50]}")
+            else:
+                command_with_context = command
+        else:
+            command_with_context = command
+
+        try:
+            try:
+                self.face.set_state("thinking")
+                self.face.set_caption("classifying...")  # ← add
+                plan = await asyncio.to_thread(self.brain.process, command_with_context)
+                notice_task.cancel()
+
+                # validate route field
+                if plan.get("route") not in ("local", "claude", "gemini", None):
+                    print(f"[Brain] Invalid route '{plan.get('route')}', defaulting to local")
+                    plan["route"] = "local"
+                notice_task.cancel()
+                # show what Brain decided
+                if plan.get("steps"):
+                    self.face.set_caption("planning...")  # ← Mistral made a plan
+                else:
+                    self.face.set_caption("")  # ← phi3 answered directly
+                    await asyncio.sleep(0)  # flush any pending Qt signal updates
+
+                if self.cancelled:
+                    await self.say(f"Cancelled, {self.response_name}.", next_state="listening")
+                    return
+
+                await self._execute_plan_with_confirm(plan, command_with_context)
+
+            except PermissionRequired as e:
+                notice_task.cancel()
+                await self._handle_permission(e, command_with_context)
+
+            except PlanExecutionError as e:
+                notice_task.cancel()
+                await self._handle_plan_error(e, plan)  # fix this or leave it/remove it?
+
+            except ModelUnavailable as e:
+                notice_task.cancel()
+                await self._handle_model_unavailable(e, command_with_context)
+
+            except Exception as e:
+                notice_task.cancel()
+                print(f"[Brain Error]: {e}")
+                self.face.set_state("error")
+                if len(command_with_context.split()) > 3:
+                    await self.say(f"I ran into a problem with that one, {self.response_name}.")
+
+        finally:
+            self._finishing = True
+            self._processing = False
+            cancel_task.cancel()
+            notice_task.cancel()
+            for task in [cancel_task, notice_task]:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+            self.face.set_state("listening")
+            self._finishing = False
+
+    async def _thinking_notice(self):
+        """Speak 'one moment' if Brain takes too long."""
+        await asyncio.sleep(7.5)
+        if not self.cancelled:
+            await self.say(f"One moment please, {self.response_name}.")
+
+    async def _listen_for_cancel(self):
+        """Always-on cancel listener running during brain execution."""
+        while not self.cancelled:
+            try:
+                if self.ears.paused:
+                    await asyncio.sleep(0.1)
+                    continue
+                audio_bytes, duration = await asyncio.wait_for(
+                    self.ears.listen(), timeout=2.0
+                )
+                if audio_bytes:
+                    text = self.stt.transcribe(audio_bytes, duration).lower().strip()
+                    if self.debug:
+                        print(f"[STT Raw] '{text}'")  # shows exactly what STT heard before any filtering
+                    if any(w in text for w in ["cancel", "stop", "never mind", "forget it"]):
+                        print("[Observer] Cancel detected during execution!")
+                        self.cancelled = True
+                        self.brain.cancel()
+                        self.mouth.stop()
+                        return
+            except asyncio.TimeoutError:
+                continue
+            except Exception:
+                continue
+
+    async def _execute_plan_with_confirm(self, plan: dict, command: str):
+        """Speak summary, confirm with user, then execute."""
+        summary = plan.get("summary", "")
+        if "{" in summary:
+            summary = summary.split("{")[0].strip()
+
+        if not plan.get("steps"):
+            await self.say(summary, next_state="listening")
+            return
+
+        await self.say(summary)
+        await self.say(f"Shall I proceed, {self.response_name}?")
+
+        self.face.set_caption("waiting for confirmation...")
+
+        await asyncio.sleep(3.5)
+
+        try:
+            response = self._text_command_queue.get_nowait()
+            print(f"[Observer] Text command: {response}")
+        except asyncio.QueueEmpty:
+            audio_bytes, duration = await self.ears.listen()
+            response = self.stt.transcribe(audio_bytes, duration).lower().strip() if audio_bytes else ""
+        print(f"[Heard] {response}")
+
+        confirmed = any(w in response for w in [
+            "y", "yes", "yeah", "yep", "do", "it", "proceed",
+            "sure", "ahead", "affirmative", "correct",
+            "build", "sounds", "good"
+        ])
+
+        await asyncio.sleep(3.5)  # adjust wait time before cancel here (move to config?)
+
+        if not confirmed:
+            self.face.set_caption("")
+            await self.say(f"Understood, {self.response_name}. Cancelled.", next_state="listening")
+            return
+
+        self.face.set_caption("")
+        await self.say(f"Building it now, {self.response_name}.")
+
+        if self.cancelled:
+            await self.say(f"Cancelled, {self.response_name}.", next_state="listening")
+            return
+
+        # show writing code if any step is generate_code
+        steps = plan.get("steps", [])
+        if any(s.get("action") == "generate_code" for s in steps):
+            self.face.set_caption("writing code...")  # ← add this
+
+        results = await self.executor.execute_plan(
+            plan,
+            cancelled=lambda: self.cancelled,
+            on_step=lambda i, total, action: self.face.set_caption(
+                f"step {i} of {total}: {action}..."
+            )
+        )
+
+        self.face.set_caption("")
+
+        if self.cancelled:
+            await self.say(f"Cancelled, {self.response_name}.")
+            return
+
+        if results:
+            await self.say(results[-1], next_state="listening")
+
+        if self.memory.enabled:
+            self.memory.remember_conversation(command, results[-1])
+
+    async def _handle_permission(self, e: PermissionRequired, command: str):
+        """Handle API permission requests."""
+        await self.say(
+            f"This command needs to go to {e.model_key}. "
+            f"Say yes to send it or no to cancel."
+        )
+
+        self.face.set_caption("waiting for confirmation...")
+
+        await asyncio.sleep(2)
+
+        try:
+            response = self._text_command_queue.get_nowait()
+            print(f"[Observer] Text command: {response}")
+        except asyncio.QueueEmpty:
+            audio_bytes, duration = await self.ears.listen()
+            response = self.stt.transcribe(audio_bytes, duration).lower().strip() if audio_bytes else ""
+
+        if any(w in response for w in ["y", "yes", "yeah", "yep", "do it", "send", "sure", "go ahead", "build",
+                                       "sounds", "good", "proceed"]):
+            # temporarily disable permission check
+            print(f"[STT Raw] '{response}'")
+            original = self.brain.api_models[e.model_key].get("ask_permission")
+            self.brain.api_models[e.model_key]["ask_permission"] = False
+            try:
+                response = self.brain.query(command, model_key=e.model_key)
+                await self.say(response, next_state="listening")
+            finally:
+                self.brain.api_models[e.model_key]["ask_permission"] = original
+        else:
+            await self.say(f"Cancelled. Handling locally instead, {self.response_name}.")
+            await self._run_local_plan(command)
+
+    async def _handle_plan_error(self, e: PlanExecutionError, plan: dict):
+        """Handle plan execution errors including overwrite confirmation."""
+        print(f"[ToolExecutor Error] step={e.step}, reason={e.reason}")
+
+        if "already exists" in e.reason:
+            await self.say(e.reason)
+            audio_bytes, duration = await self.ears.listen()
+            if audio_bytes:
+                response = self.stt.transcribe(audio_bytes, duration).lower().strip()
+                if any(w in response for w in [
+                    "yes", "overwrite", "over write", "replace", "do it", "sure"
+                ]):
+                    for step in plan["steps"]:
+                        step["params"]["overwrite"] = True
+                    results = await self.executor.execute_plan(
+                        plan, cancelled=lambda: self.cancelled
+                    )
+                    if results:
+                        await self.say(results[-1])
+                else:
+                    await self.say(f"Leaving the existing file untouched, {self.response_name}.")
+        else:
+            await self.say(f"I ran into a problem, {self.response_name}. {e.reason}")
+
+    async def _handle_model_unavailable(self, e: ModelUnavailable, command: str):
+        """Handle unavailable model by falling back to local."""
+        print(f"[Brain] Model unavailable: {e.model_key}")
+        await self.say(
+            f"The {e.model_key} model is unavailable, {self.response_name}. Handling locally instead."
+        )
+        await self._run_local_plan(command)
+
+    async def _run_local_plan(self, command: str):
+        """Run a plan locally without API models."""
+        plan = self.brain.create_plan(command)
+        summary = plan.get("summary", "")
+        if "{" in summary:
+            summary = summary.split("{")[0].strip()
+
+        if plan.get("steps"):
+            await self.say(summary)
+            await self.say(f"Shall I proceed, {self.response_name}?")
+
+            audio_bytes, duration = await self.ears.listen()
+            response = self.stt.transcribe(audio_bytes, duration).lower().strip() if audio_bytes else ""
+
+            confirmed = any(w in response for w in [
+                "yes", "yeah", "yep", "do it", "proceed",
+                "sure", "go ahead", "affirmative", "correct", "build"
+            ])
+
+            if not confirmed:
+                await self.say(f"Understood, {self.response_name}. Cancelled.")
+                return
+
+            results = await self.executor.execute_plan(
+                plan, cancelled=lambda: self.cancelled
+            )
+            if results:
+                await self.say(results[-1])
+        else:
+            await self.say(summary)
+
+    def _similarity(self, a: str, b: str) -> float:
+        """Simple word overlap similarity."""
+        words_a = set(a.lower().split())
+        words_b = set(b.lower().split())
+        if not words_a or not words_b:
+            return 0.0
+        overlap = words_a & words_b
+        return len(overlap) / max(len(words_a), len(words_b))
+
+    async def say(self, text: str, next_state: str = None) -> None:
+        """Speak and pause ears during playback to prevent echo."""
+        if self.debug:
+            print(f"[Observer] Pausing ears")
+        self.ears.paused = True
+        self._last_spoken = text.lower().strip()
+        # if request came from API, capture response instead of only speaking
+        if self._api_request_pending:
+            self._api_response_queue.put_nowait(text)
+            self._api_request_pending = False
+        self._last_spoken_time = time.time()
+        self.face.set_caption(text)  # ← show in GUI
+        self.face.set_state("speaking")
+        with timer("TTS", self.debug):
+            await self.mouth.speak(text)
+        self.face.set_state(next_state or ("thinking" if self._processing else "listening"))        # check if canceled during speech
+        if self.cancelled:
+            self.ears.paused = False
+            return
+        await asyncio.sleep(0.5)
+        self.ears.paused = False
+        # flush any audio captured during speech
+        if self.ears.audio_stream:
+            try:
+                while self.ears.audio_stream.get_read_available() > 0:
+                    self.ears.audio_stream.read(
+                        self.ears.chunk_size,
+                        exception_on_overflow=False
+                    )
+            except OSError:
+                pass
+        self.ears.paused = False
+        if self.debug:
+            print(f"[Observer] Ears resumed")
+
+    def _cancel_all(self):
+        self.cancelled = True
+        try:
+            self.brain.cancel()
+            self.mouth.stop()
+        except Exception as e:
+            print(f"[Observer] Error cancelling: {e}")
+        self.ears.paused = False
+        self.face.set_state("listening")
+        print("[Observer] Cancelled via GUI")
+
+    def _request_key_via_gui(self, provider: str) -> str:
+        """Called from brain thread — pauses until GUI provides key."""
+        self._pending_key = None
+        self._waiting_for_key = True
+        self._key_event.clear()
+        print(f"[APIKeys] Waiting for key input in GUI for {provider}")
+        self.face.set_caption(f"{provider} API key required — type in text box and press Send")
+        self.face.set_state("thinking")
+        self._key_event.wait(timeout=120)
+        print(f"[APIKeys] Got key: {bool(self._pending_key)}")
+        self._waiting_for_key = False
+        if not self._pending_key:
+            raise ValueError(f"No API key provided for {provider}")
+        return self._pending_key
+
+    def _provide_key(self, key: str):
+        """Called from GUI text input when in key-request mode."""
+        self._pending_key = key.strip()
+        self._key_event.set()
+
+    def _build_capabilities(self) -> str:
+        core = (
+            f"Quite a few things, {self.response_name}. "
+            "I can answer questions, tell jokes, and hold a conversation. "
+            "I can open applications, control your browser, search the web, and navigate pages. "
+            "I can read and summarize PDF documents. "
+            "I can create files and folders, and generate code in Python, JavaScript, HTML, and more. "
+            "I can read files, run scripts, and manage your workspace. "
+            "I can run on your Android device and send complex commands to your computer. "
+        )
+
+        if self.eyes:
+            core += (
+                "I have eyes through your web cam — I can see what's in front of me, "
+                "identify objects, read text, and answer questions about what I see. "
+            )
+
+        api_caps = []
+        if self.brain.api_models.get("gemini", {}).get("enabled"):
+            api_caps.append("Gemini for real-time information and long document analysis")
+        if self.brain.api_models.get("claude", {}).get("enabled"):
+            api_caps.append("Claude for complex reasoning and large codebases")
+
+        if api_caps:
+            core += f"I also have access to {' and '.join(api_caps)}. "
+
+        integration_caps = []
+        if self.config.get("integrations", {}).get("google_calendar", {}).get("enabled"):
+            integration_caps.append("check and manage your calendar")
+        if self.config.get("integrations", {}).get("gmail", {}).get("enabled"):
+            integration_caps.append("read and send emails via Gmail")
+
+        if integration_caps:
+            core += f"I can also {' and '.join(integration_caps)}. "
+
+        core += f"What would you like me to do, {self.response_name}?"
+        return core
+
+    # Adding new features
+    def register_handler(self, name: str, handler):
+        print(f"[Observer] Registered handler: {name}")
+        self.handlers[name] = handler

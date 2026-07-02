@@ -10,13 +10,20 @@ class Ears:
 
     def __init__(self, chunk_size=1024, rate=48000, debug=False,
                  pre_speech_timeout=3.0, max_speech_duration=25.0,
-                 silence_seconds=1.5):
+                 silence_seconds=1.5, config=None):
+
+        self.debug = debug
         self.audio_stream = None
         self.chunk_size = chunk_size
         self.rate = rate
         self.paused = False
-        self.debug = debug
         self.speaking = False
+        self.use_mock = config.get("audio", {}).get("use_mock", False) if config else False
+
+        # skip hardware initialization if mock mode
+        if self.use_mock:
+            print("[Ears] Mock mode — audio disabled")
+            return
 
         # dynamic — set by calibration
         self.start_threshold = 32767  # max possible value — won't trigger until calibrated
@@ -26,6 +33,8 @@ class Ears:
 
         # speech confirmation — prevents AC spikes triggering false starts
         self.speech_confirm_chunks = 3
+        self.pre_speech_buffer = []  # holds chunks before speech confirmed
+        self.pre_speech_buffer_max = 5  # keep last 5 chunks before trigger
 
         self.pre_speech_timeout = pre_speech_timeout
         self.max_speech_duration = max_speech_duration
@@ -129,19 +138,22 @@ class Ears:
         self.noise_floor = float(np.percentile(samples, 90))
 
         if self.noise_floor > 5000:
-            print(f"[Ears] WARNING: Noise floor too high ({int(self.noise_floor)}), using static thresholds")
-            self.start_threshold = 8000
-            self.stop_threshold = 4000
+            if self.debug:
+                print(f"[Ears] WARNING: Noise floor high ({int(self.noise_floor)})")
+            self.start_threshold = self.noise_floor * 1.25
+            self.stop_threshold = self.noise_floor * 1.25
         else:
             self.start_threshold = self.noise_floor * 4.0
             self.stop_threshold = self.noise_floor * 2.0
+        if self.debug:
+            print(f"[Ears] Noise floor={int(self.noise_floor)} "
+                  f"start={int(self.start_threshold)} "
+                  f"stop={int(self.stop_threshold)}")
 
-        print(f"[Ears] Noise floor={int(self.noise_floor)} "
-              f"start={int(self.start_threshold)} "
-              f"stop={int(self.stop_threshold)}")
-
-    async def auto_calibrate(self, interval: int = 20):
+    async def auto_calibrate(self, interval: int = 30):
         """Recalibrate noise floor every interval seconds, only during silence."""
+        if self.use_mock:
+            return
         while True:
             await asyncio.sleep(interval)
             try:
@@ -157,6 +169,12 @@ class Ears:
     async def listen(self, max_duration=30.0):
         if self.debug:
             print(f"[Ears] Thresholds: start={int(self.start_threshold)} stop={int(self.stop_threshold)}")
+
+        if self.use_mock:
+            # block forever — text input handles commands
+            await asyncio.sleep(9999)
+            return None, 0
+
         # retry up to 3 times with backoff
         for attempt in range(3):
             try:
@@ -202,20 +220,25 @@ class Ears:
             audio_np = np.frombuffer(data, dtype=np.int16)
             rms = np.sqrt(np.mean(audio_np.astype(np.float32) ** 2))
 
-            if self.debug:
-                print(f"[Ears RMS] {int(rms)} speech={speech_started}")
-
             # ---- waiting for speech to start ----
             if not speech_started:
                 if time.time() - start_time > self.pre_speech_timeout:
                     return None, 0.0
+
+                # always buffer recent chunks — ring buffer
+                self.pre_speech_buffer.append(data)
+                if len(self.pre_speech_buffer) > self.pre_speech_buffer_max:
+                    self.pre_speech_buffer.pop(0)
+
                 if rms >= self.start_threshold:
                     consecutive_loud += 1
                     if consecutive_loud >= self.speech_confirm_chunks:
                         speech_started = True
                         speech_start_time = time.time()
                         self.speaking = True
-                        frames.append(data)
+                        # prepend buffered chunks so first words aren't lost
+                        frames.extend(self.pre_speech_buffer)
+                        self.pre_speech_buffer = []
                 else:
                     consecutive_loud = 0
                 continue

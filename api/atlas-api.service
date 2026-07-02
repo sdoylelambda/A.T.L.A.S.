@@ -1,0 +1,19 @@
+[Unit]
+Description=A.T.L.A.S. FastAPI Server
+Documentation=https://github.com/seandoyle/atlas
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=zero
+WorkingDirectory=/home/zero/dev/A.T.L.A.S.
+ExecStart=/home/zero/dev/A.T.L.A.S./.venv/bin/uvicorn fastapi_server:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

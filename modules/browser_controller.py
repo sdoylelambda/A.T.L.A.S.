@@ -1,28 +1,161 @@
-from playwright.async_api import async_playwright
 import urllib.parse
+import os
+import asyncio
+
+from playwright.async_api import async_playwright
 
 
 class BrowserController:
-    def __init__(self):
+    def __init__(self, config: dict):
+        self.debug = False
         self.playwright = None
         self.browser = None
         self.context = None
         self.page = None
+        self.use_chrome = config["browser"].get("use_chrome", False)
+        self.chrome_profile_path = config["browser"].get("chrome_profile_path", None)
+        self.use_firefox = config["browser"].get("use_firefox", True)
+        self.firefox_profile_path = config["browser"].get("firefox_profile_path", None)
+        self.firefox_executable_path = config["browser"].get("firefox_executable_path", None)
         print("[Browser] Lazy init ready")
 
     # ==========================================
-    # Ensure browser exists
+    # Playwright browser control
     # ==========================================
+    async def start(self):
+        print("[Browser] Launching Playwright browser...")
+        self.playwright = await async_playwright().start()
+
+        try:
+            if self.use_chrome:
+                if not os.path.exists(self.chrome_profile_path):
+                    await self._create_profile("chrome")
+                    return
+                self.context = await self.playwright.chromium.launch_persistent_context(
+                    user_data_dir=self.chrome_profile_path,
+                    headless=False,
+                    channel="chrome",
+                    args=["--autoplay-policy=no-user-gesture-required"]
+                )
+
+            elif self.use_firefox:
+                if self.debug:
+                    print(f"[Browser] Profile path: {self.firefox_profile_path}")
+                    print(f"[Browser] Profile exists: {os.path.exists(self.firefox_profile_path)}")
+                    print(
+                        f"[Browser] prefs.js exists: {os.path.exists(os.path.join(self.firefox_profile_path, 'prefs.js'))}")
+
+                if not os.path.exists(os.path.join(self.firefox_profile_path, "prefs.js")):
+                    await self._create_profile("firefox")
+                    return
+
+                self.context = await self.playwright.firefox.launch_persistent_context(
+                    user_data_dir=self.firefox_profile_path,
+                    executable_path=self.firefox_executable_path,
+                    headless=False,
+                    firefox_user_prefs={
+                        "browser.downgrade.ignore": True,
+                        "browser.sessionstore.resume_from_crash": False,
+                        "browser.startup.page": 0,  # blank page on startup
+                        "browser.startup.homepage_override.mstone": "ignore",
+                        "toolkit.startup.max_resumed_crashes": -1,
+                        "browser.shell.checkDefaultBrowser": False,
+                        "browser.tabs.warnOnClose": False,
+                        "datareporting.policy.dataSubmissionEnabled": False,
+                        "datareporting.healthreport.uploadEnabled": False,
+                    }
+                )
+
+            self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
+            if self.debug:
+                print(f"[Browser] Ready — page url: {self.page.url}")
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            print(f"[Browser] Failed to launch: {e}")
+
+    async def _create_profile(self, browser_type: str):
+        """First run only — creates browser profile for persistent logins."""
+        import subprocess
+        import psutil
+
+        if browser_type == "chrome":
+            profile_ready = os.path.exists(os.path.join(self.chrome_profile_path, "Default"))
+            running_name = "chrome"
+            profile_path = self.chrome_profile_path
+        else:
+            profile_ready = os.path.exists(os.path.join(self.firefox_profile_path, "prefs.js"))
+            running_name = "firefox"
+            profile_path = self.firefox_profile_path
+
+        if profile_ready:
+            print("[Browser] Profile already exists, skipping setup.")
+            return
+
+        # check if browser already running
+        if self.debug:
+            for proc in psutil.process_iter(['name']):
+                if proc.info['name'] and running_name in proc.info['name'].lower():
+                    print(f"[Browser] ⚠️  {browser_type} is running — please close it, then restart Atlas.")
+                    input("Press Enter once closed...")
+                    break
+
+        os.makedirs(profile_path, exist_ok=True)
+        print(f"[Browser] First run — setting up {browser_type} profile.")
+
+        if browser_type == "firefox":
+            self.playwright = await async_playwright().start()
+            self.context = await self.playwright.firefox.launch_persistent_context(
+                user_data_dir=profile_path,
+                headless=False,
+                firefox_user_prefs={
+                    "browser.downgrade.ignore": True,
+                    "browser.sessionstore.resume_from_crash": False,
+                    "browser.startup.page": 0,
+                    "browser.startup.homepage_override.mstone": "ignore",
+                    "toolkit.startup.max_resumed_crashes": -1,
+                    "browser.shell.checkDefaultBrowser": False,
+                    "browser.tabs.warnOnClose": False,
+                    "datareporting.policy.dataSubmissionEnabled": False,
+                    "datareporting.healthreport.uploadEnabled": False,
+                }
+            )
+            self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
+            print("[Browser] Profile created. Ready.")
+            return
+
+        elif browser_type == "chrome":
+            proc = subprocess.Popen([
+                "google-chrome",
+                "--profile-directory=Jarvis"
+            ])
+            proc.wait()
+            print("[Browser] Profile setup complete. Continuing startup...")
+
+    async def stop(self):
+        """Shutdown browser cleanly."""
+        if self.context:
+            await self.context.close()
+        if self.playwright:
+            await self.playwright.stop()
+
     async def _ensure_browser(self):
         if await self._ensure_page_alive():
             return
 
-        print("[Browser] Launching Playwright browser...")
-        self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(headless=False)
-        self.context = await self.browser.new_context()
-        self.page = await self.context.new_page()
-        print("[Browser] Ready")
+        if self.playwright is None:
+            if self.debug:
+                print("[Browser] First browser command — launching...")
+            try:
+                await asyncio.wait_for(self.start(), timeout=30)
+            except asyncio.TimeoutError:
+                print("[Browser] Launch timed out after 30s")
+            return
+
+        print("[Browser] Recovering lost browser session...")
+        await self.start()
+        print("[Browser] Recovered")
 
     async def _ensure_page_alive(self) -> bool:
         """Check if page is still usable, reset if not."""
@@ -44,6 +177,34 @@ class BrowserController:
     # ==========================================
     async def handle_command(self, spoken_text: str):
         text = spoken_text.lower().strip()
+        if self.debug:
+            print(f"[Browser] handle_command called: '{text}'")
+
+        # check if this is actually a browser command first
+        is_browser_command = (
+                "youtube" in text or
+                "google" in text or
+                "search for" in text or
+                "look up" in text or
+                "navigate to" in text or
+                "scroll" in text or
+                "zoom" in text or
+                "go back" in text or
+                "go forward" in text or
+                "new tab" in text or
+                "close tab" in text or
+                "refresh" in text or
+                "reload" in text or
+                "full screen" in text or
+                "fullscreen" in text or
+                (self.page and "youtube.com" in self.page.url)  # context aware
+        )
+
+        if not is_browser_command:
+            return False  # don't touch browser, let brain handle it
+
+        await self._ensure_browser()  # only launch if actually needed
+        text = spoken_text.lower().strip()
 
         # --- GOOGLE SEARCH ---
         if text.startswith("google ") or text.startswith("search for ") or text.startswith("look up "):
@@ -53,9 +214,16 @@ class BrowserController:
         if "youtube" in text and not text.startswith("google"):
             await self._ensure_browser()
             query = text.replace("youtube", "").replace("open", "").replace("search", "").strip()
+            if self.debug:
+                print(f"[Browser] YouTube query: '{query}'")
             if query:
                 encoded = urllib.parse.quote_plus(query)
-                await self.page.goto(f"https://www.youtube.com/results?search_query={encoded}")
+                url = f"https://www.youtube.com/results?search_query={encoded}"
+                print(f"[Browser] Navigating to: {url}")
+                await self.page.goto(url)
+                await self.page.wait_for_load_state("domcontentloaded")
+                if self.debug:
+                    print(f"[Browser] Current url: {self.page.url}")
             else:
                 await self.page.goto("https://www.youtube.com")
             return True

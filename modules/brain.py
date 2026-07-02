@@ -1,50 +1,108 @@
-import yaml
-import ollama
-import anthropic
-from anthropic.types import MessageParam
-from google import genai
 import faiss
 import json
-from custom_exceptions import PermissionRequired, ModelUnavailable, PlanExecutionError
+import ollama
+import anthropic
 import textwrap
+import threading
+import time
+
+from anthropic.types import MessageParam
+from google import genai
+from custom_exceptions import PermissionRequired, ModelUnavailable
+from modules.utils import timer
+from config.api_keys import get_api_key
 
 
 class Brain:
     def __init__(self, config: dict):
+        self.debug = False
         self.config = config["llm"]
+        self.response_name = config["personalize"].get("response_name", "")
         self.models = self.config["models"]
         self.api_models = self.config["api_models"]
+        self._gemini_client = None
 
-        # FAISS memory (step 11 - RAG, stubbed for now)
+        # FAISS memory (is this still relevant with mempalace?)
         self.vector_db = faiss.IndexFlatL2(384)
         self.memory_texts = []
         self._encoder = None  # lazy load
-        self.debug = True
+        self.active_proc = None
+        self.cancel_event = threading.Event()
 
     # ─── core query method ───────────────────────────────────────────────
 
     def query(self, prompt: str, model_key: str = "orchestrator",
-              system: str = None, num_ctx_override: int = None) -> str:
+              system: str = None, num_ctx_override: int = None,
+              max_tokens_override: int = None, bypass_permission: bool = False) -> str:
         """Single entry point for all LLM calls."""
+        self.cancel_requested = False
+        result = {}
+        cfg = {}
 
         # local ollama models
+        import queue
+        import threading
+
         if model_key in self.models:
             cfg = self.models[model_key]
+
             messages = []
             if system:
                 messages.append({"role": "system", "content": system})
             messages.append({"role": "user", "content": prompt})
 
-            response = ollama.chat(
-                model=cfg["name"],
-                messages=messages,
-                options={
-                    "num_ctx": int(num_ctx_override or cfg.get("num_ctx", 512)),
-                    "temperature": float(cfg.get("temperature", 0.1)),
-                    "num_predict": int(cfg.get("max_tokens", 500)),
-                }
-            )
-            return response["message"]["content"]
+            self.cancel_event.clear()
+
+            output_queue = queue.Queue()
+            result = []
+
+            def run_ollama():
+                try:
+                    stream = ollama.chat(
+                        model=cfg["name"],
+                        messages=messages,
+                        stream=True,
+                        options={
+                            "num_ctx": int(num_ctx_override or cfg.get("num_ctx", 512)),
+                            "temperature": float(cfg.get("temperature", 0.1)),
+                            "num_predict": int(max_tokens_override or cfg.get("max_tokens", 500)),
+                        }
+                    )
+
+                    for chunk in stream:
+                        if self.cancel_event.is_set():
+                            try:
+                                stream.close()
+                            except:
+                                pass
+                            return
+
+                        msg = chunk.get("message")
+                        if msg:
+                            token = msg.get("content", "")
+                            if token:
+                                output_queue.put(token)
+
+                except Exception as e:
+                    output_queue.put(f"[ERROR] {e}")
+
+            # start worker
+            t = threading.Thread(target=run_ollama, daemon=True)
+            t.start()
+
+            # main thread consumes output
+            while t.is_alive() or not output_queue.empty():
+
+                if self.cancel_event.is_set():
+                    return ""
+
+                try:
+                    token = output_queue.get(timeout=0.05)
+                    result.append(token)
+                except queue.Empty:
+                    continue
+
+            return "".join(result)
 
         # claude api
         elif model_key == "claude":
@@ -57,7 +115,7 @@ class Brain:
             message = client.messages.create(
                 model=cfg["model"],
                 max_tokens=int(cfg.get("max_tokens", 1000)),
-                system=system or "You are Jarvis, a helpful AI assistant.",
+                system=system or "You are Atlas, a helpful AI assistant.",
                 messages=[MessageParam(role="user", content=prompt)]
             )
             return message.content[0].text
@@ -67,119 +125,73 @@ class Brain:
             cfg = self.api_models["gemini"]
             if not cfg.get("enabled", False):
                 raise ModelUnavailable("gemini")
-            if cfg.get("ask_permission", True):
+            if cfg.get("ask_permission", True) and not bypass_permission:  # ← add check
                 raise PermissionRequired("gemini", prompt)
-            client = genai.Client()
-            response = client.models.generate_content(
-                model=cfg["model"],
-                contents=prompt
-            )
-            return response.text
+
+            gemini_api_key = get_api_key("gemini")
+
+            if not self._gemini_client:
+                self._gemini_client = genai.Client(api_key=gemini_api_key)
+
+            try:
+                with timer("Gemini", self.debug):
+                    response = self._gemini_client.models.generate_content(
+                        model=cfg["model"],
+                        contents=prompt
+                    )
+            except Exception as e:
+                if "API key" in str(e):
+                    # key was just stored — rebuild client and retry once
+                    print("[Brain] Rebuilding Gemini client with new key")
+                    self._gemini_client = genai.Client(api_key=get_api_key("gemini"))
+                    response = self._gemini_client.models.generate_content(
+                        model=cfg["model"],
+                        contents=prompt
+                    )
+                else:
+                    raise
+            # strip markdown before returning
+            import re
+            text = response.text
+            text = re.sub(r'\*+', '', text)  # remove asterisks
+            text = re.sub(r'#{1,6}\s?', '', text)  # remove headers
+            text = re.sub(r'`+', '', text)  # remove code ticks
+            text = re.sub(r'\n+', ' ', text)  # flatten newlines
+            return text.strip()
 
         else:
             raise ValueError(f"Unknown model key: {model_key}")
 
-    # ─── permission bypass ────────────────────────────────────────────────
-
-    def process_with_permission(self, command: str, model_key: str) -> dict:
-        """Called after user grants permission — skips ask_permission check."""
-        cfg = self.api_models.get(model_key, {})
-        if not cfg.get("enabled", False):
-            return {"summary": f"{model_key} API is disabled in config.", "steps": []}
-
-        # temporarily bypass permission check by calling API directly
-        if model_key == "claude":
-            client = anthropic.Anthropic()
-            message = client.messages.create(
-                model=cfg["model"],
-                max_tokens=cfg.get("max_tokens", 1000),
-                system="You are Jarvis, a helpful AI assistant.",
-                messages=[MessageParam(role="user", content=command)]
-            )
-            return {"summary": message.content[0].text, "steps": []}
-
-        elif model_key == "gemini":
-            model = genai.GenerativeModel(cfg["model"])
-            response = model.generate_content(command)
-            return {"summary": response.text, "steps": []}
-
-        return {"summary": "Unknown API model.", "steps": []}
-
-    # ─── intent classification ────────────────────────────────────────────
-
-    def quick_answer(self, command: str) -> dict | None:
+    def quick_answer(self, command: str) -> dict | None:  # remove 'open browser'? (shouldn't make it this far)
         """
         phi3 attempts to handle the command directly.
         Returns a result dict if it can handle it, None if it needs Mistral.
         """
-        system = textwrap.dedent("""
-            You are Jarvis, a witty British AI assistant from Iron Man.
-            Always say 'sir'. One sentence max. Two sentences only for jokes.
+        system = textwrap.dedent(f"""
+            You are Atlas, a witty British AI assistant.
+            Always say {self.response_name}. 
+            Keep responses as short as possible.
 
-            ESCALATE for anything computer-related: files, code, apps, web, scripts, system.
+            ESCALATE for anything code or creation related: files, languages, apps, web, scripts, system.
             ESCALATE if unsure. Never write code. Never pretend to do computer tasks.
 
-            Examples:
+            # Examples:
             User: create a file
-            Jarvis: ESCALATE
+            Atlas: ESCALATE
             User: write a python class
-            Jarvis: ESCALATE
+            Atlas: ESCALATE
             User: open browser
-            Jarvis: ESCALATE
+            Atlas: ESCALATE
             User: what is the capital of France
-            Jarvis: Paris, sir.
+            Atlas: Paris, {self.response_name}.
+            User: what's the address for daytona international speedway
+            Atlas: the address for daytona international speedway 1801 W International Speedway Blvd, Daytona Beach, FL 32114
             User: tell me a joke
-            Jarvis: Why don't eggs tell jokes? They'd crack each other up, sir.
+            Atlas: Why don't eggs tell jokes? They'd crack each other up, {self.response_name}.
             User: how are you
-            Jarvis: Fully operational, sir.
+            Atlas: Fully operational, {self.response_name}.
             User: what is 2 plus 2
-            Jarvis: 4, sir.""").strip()
-        # system = textwrap.dedent("""
-        #     You are Jarvis, an AI assistant with dry British wit inspired by Iron Man.
-        #     Always address the user as 'sir'. Never use names or Mr./Mrs.
-        #     Be natural, concise, never robotic.
-        #
-        #     RULE: Respond with ESCALATE for ANYTHING involving a computer.
-        #     RULE: NEVER write code, scripts, or bash commands. Ever.
-        #     RULE: NEVER pretend to complete a computer task.
-        #     RULE: Respond with one sentence if at all possible.
-        #     RULE: three sentences max for all responses.
-        #     RULE: Never make jokes about computers, coding, or AI.
-        #     RULE: Use US Standard units
-        #
-        #     ESCALATE for: files, folders, code, scripts, apps, web, system, anything on a computer.
-        #     ESCALATE if unsure.
-        #
-        #     Examples:
-        #     User: create a file called test.txt
-        #     Jarvis: ESCALATE
-        #
-        #     User: create a new file called backend.py with basic code methods
-        #     Jarvis: ESCALATE
-        #
-        #     User: write a python class
-        #     Jarvis: ESCALATE
-        #
-        #     User: write me any code at all
-        #     Jarvis: ESCALATE
-        #
-        #     User: make a script
-        #     Jarvis: ESCALATE
-        #
-        #     User: what is the capital of France
-        #     Jarvis: Paris, sir.
-        #
-        #     User: how are you today
-        #     Jarvis: Fully operational and at your service, sir.
-        #
-        #     User: tell me a joke
-        #     Jarvis: Why don't scientists trust atoms? Because they make up everything, sir.
-        #
-        #     User: what is the capital of New England
-        #     Jarvis: New England is a region of six states, not a single country, so there is no single capital, sir.
-        #
-        #     User: what is 2 plus 2
-        #     Jarvis: 4, sir.""").strip()
+            Atlas: 4, {self.response_name}.""").strip()
 
         result = self.query(command, model_key="classifier", system=system)
         result = result.strip()
@@ -189,19 +201,45 @@ class Brain:
         if "ESCALATE" in result:
             return None
 
-        if len(result.split()) > 60:
-            print("[Brain] phi3 response too long, forcing ESCALATE")
+        # Excavate rather than fail
+        escalate_phrases = [
+            "i'm sorry",
+            "i am sorry",
+            "i can't",
+            "i cannot",
+            "i'm unable",
+            "i am unable",
+            "i don't have",
+            "i do not have",
+            "as an ai",
+            "i'm just an ai",
+            "scheduled for",
+            "appointment scheduled",
+            "added to",
+            "reminder set",
+            "I'll remind you"
+        ]
+
+        if any(phrase in result.lower() for phrase in escalate_phrases):
+            print(f"[Brain] phi3 apologized, pretended or refused: forcing ESCALATE")
             return None
 
         # If trying to return code
         if ("```" in result or
-                "def " in result or
+                "folder " in result or
+                "project " in result or
+                "() " in result or
                 "class " in result or
                 "import " in result or
-                "<!doctype" in result.lower() or  # HTML document
-                "<html" in result.lower() or  # HTML document
-                "<style>" in result.lower() or  # standalone CSS block
-                "<body>" in result.lower()):  # HTML document
+                ".txt " in result or
+                "file " in result or
+                ".py " in result or
+                ".js " in result or
+                ".ts " in result or
+                ".md " in result or
+                "html " in result or
+                "css " in result or
+                "yaml " in result):
             print("[Brain] phi3 returned code, forcing ESCALATE")
             return None
 
@@ -219,9 +257,9 @@ class Brain:
 
     # ─── plan creation ────────────────────────────────────────────────────
 
-    def create_plan(self, command: str) -> dict:
+    def create_plan(self, command: str, num_ctx_override: int = None) -> dict:
         system = textwrap.dedent("""
-            You are Jarvis, an AI computer assistant.
+            You are Atlas, an AI computer assistant.
             Your only job is to return a valid JSON execution plan. Nothing else.
             Never respond with text, explanations, or ESCALATE. Only JSON.
             For write_code actions, only include a brief skeleton in content.
@@ -254,6 +292,7 @@ class Brain:
             - Never use write_code and generate_code together for the same file
             - Never put more than 10 lines of code in write_code content
             - Keep JSON responses concise — descriptions only, never actual code content
+            - "route" must always be "local", "claude", or "gemini" — never a tool name
     
             Set route to "claude" for complex reasoning or long document analysis.
             Set route to "gemini" for real-time or current information.
@@ -272,10 +311,13 @@ class Brain:
             User: create a homepage.html with about and contact sections
             {"summary": "Generating homepage.html with sections.", "route": "local", "steps": [{"action": "generate_code", "params": {"path": "homepage.html", "description": "HTML page with inline CSS, home, about us, contact sections"}}]}
     
+            User: what is star wars about
+            {"summary": "Star Wars is a space opera franchise created by George Lucas.", "route": "local", "steps": []}
+    
             Only return JSON. No explanation. No markdown. No code blocks.""").strip()
 
         command = command.replace("ESCALATE", "").strip()
-        num_ctx = self._get_num_ctx(command)
+        num_ctx = num_ctx_override or self._get_num_ctx(command)
 
         # log why this ctx was chosen
         command_lower = command.lower()
@@ -289,7 +331,8 @@ class Brain:
             system=system,
             num_ctx_override=num_ctx
         )
-        print(f"[Brain] Mistral raw response: {result[:200]}")
+        print(f"[Brain] Mistral raw response length: {len(result)}")
+        print(f"[Brain] Mistral raw response: {result}")
 
         try:
             start = result.find("{")
@@ -308,27 +351,51 @@ class Brain:
         """
         Layered routing:
         1. phi3 tries to handle it directly
-        2. Mistral handles complex/multi-step
+        2. Mistral handles complex/multistep
         3. API models as last resort
         """
         # layer 1 — phi3 quick answer
-        result = self.quick_answer(command)
+        with timer("phi3", self.debug):
+            result = self.quick_answer(command)
         if result:
             print("[Brain] Handled by phi3")
             return result
 
         # layer 2 — mistral full plan
         print("[Brain] Escalating to Mistral")
-        plan = self.create_plan(command)
+        with timer("Mistral", self.debug):
+            plan = self.create_plan(command)
 
         # layer 3 — api escalation if mistral flags it
         route = plan.get("route")
         if route in ("claude", "gemini"):
             print(f"[Brain] Escalating to {route}")
-            response = self.query(command, model_key=route)
+            with timer("Gemini/Claude", self.debug):
+                response = self.query(command, model_key=route)
             return {"summary": response, "steps": []}
 
         return plan
+
+    # ─── draft Gmail message ─────────────────────────────────────────────
+
+    def draft_email(self, prompt: str) -> str:
+        """Dedicated email drafting — plain text output, larger context."""
+        system = textwrap.dedent("""
+            You are a professional email assistant.
+            Write concise, friendly, professional emails.
+            2-3 sentences max unless more is needed.
+            Plain text only — no markdown, no JSON.
+            Do not include subject line or greeting.
+            Just the email body.
+        """).strip()
+
+        return self.query(
+            prompt,
+            model_key="orchestrator",
+            system=system,
+            num_ctx_override=2048,
+            max_tokens_override=500
+        )
 
     # ─── memory / RAG (step 11) ───────────────────────────────────────────
 
@@ -362,333 +429,43 @@ class Brain:
             "class", "function", "method", "flask", "django", "react",
             "api", "database", "auth", "authentication", "script",
             "html", "css", "javascript", "typescript", "component",
-            "module", "library", "framework", "backend", "frontend",
-            "py", "dart", "js", "jsx"
+            "module", "library", "framework", "py", "dart", "js", "jsx"
         ]
 
         # also check for file extensions in command
-        code_extensions = [".py", ".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".dart"]
+        code_extensions = [".py", ".js", ".jsx", ".ts", ".tsx", ".html", ".css", ".dart", ".pdf"]
         has_code_extension = any(ext in command_lower for ext in code_extensions)
 
         is_code = any(kw in command_lower for kw in code_keywords) or has_code_extension
 
-        # multi-step commands need more context
+        # multistep commands need more context
         multi_keywords = ["and", "then", "also", "with", "plus", "add"]
         is_multi = sum(1 for kw in multi_keywords if kw in command_lower) >= 2
 
-        if is_code and words > 15:
-            return 8192  # complex code generation
+        if is_code and words >= 15:  # BUG-2 fix: was `words > 15`
+            return 4096  # was 8192 — data shows 1024 sufficient, 4096 for safety margin
         elif is_code:
-            return 4096  # simple code generation
+            return 1024  # was 4096 — data shows 1024 sufficient
         elif is_multi and words > 20:
-            return 4096  # complex multi-step
+            return 1024  # was 4096 — data shows 1024 sufficient
         elif words <= 10:
-            return 1024  # simple single commands
+            return 1024  # unchanged — already correct
         elif words <= 20:
-            return 2048  # medium commands
+            return 1024  # was 2048 — data shows 1024 sufficient
         else:
-            return 4096  # long commands
+            return 4096  # long commands only — keep headroom for long_email_draft anomaly
 
+    # ─── cancel active llm  ─────────────────────────────────────────────
 
+    def cancel(self):
+        self.cancel_event.set()
 
-# import yaml
-# import ollama
-# import anthropic
-# import google.generativeai as genai
-# import faiss
-# import json
-# from custom_exceptions import PermissionRequired, ModelUnavailable, PlanExecutionError
-# from sentence_transformers import SentenceTransformer
-#
-#
-# class Brain:
-#     def __init__(self, config_path="./config.yaml"):
-#         with open(config_path, "r") as f:
-#             self.config = yaml.safe_load(f)["llm"]
-#
-#         self.models = self.config["models"]
-#         self.api_models = self.config["api_models"]
-#
-#         # FAISS memory (step 11 - RAG, stubbed for now)
-#         self.vector_db = faiss.IndexFlatL2(384)  # 384 = all-MiniLM-L6-v2 dimension
-#         self.memory_texts = []
-#         self._encoder = None  # lazy load, only when needed
-#
-#     # ─── core query method ───────────────────────────────────────────────
-#     def _ask_permission(self, model_key: str, prompt: str):
-#         """Ask user before sending data to external API."""
-#         print(f"\n⚠️  This command would be sent to {model_key.upper()}'s servers.")
-#         print(f"Command: '{prompt[:80]}{'...' if len(prompt) > 80 else ''}'")
-#         if cfg.get("ask_permission", True):
-#             raise PermissionRequired(model_key, prompt)
-#
-#     def process_with_permission(self, command: str, model_key: str) -> dict:
-#         """Called after user grants permission — skips ask_permission check."""
-#         cfg = self.api_models.get(model_key, {})
-#         if not cfg.get("enabled", False):
-#             return {"summary": f"{model_key} API is disabled in config.", "steps": []}
-#
-#         response = self.query(command, model_key=model_key)
-#         return {"summary": response, "steps": []}
-#
-#     def query(self, prompt: str, model_key: str = "orchestrator", system: str = None) -> str:
-#         """Single entry point for all LLM calls."""
-#         def _ask_permission(self, model_key: str, prompt: str):
-#             """Ask user before sending data to external API."""
-#             print(f"\n⚠️  This command would be sent to {model_key.upper()}'s servers.")
-#             print(f"Command: '{prompt[:80]}{'...' if len(prompt) > 80 else ''}'")
-#             if cfg.get("ask_permission", True):
-#                 raise PermissionRequired(model_key, prompt)
-#
-#         # local ollama models
-#         if model_key in self.models:
-#             cfg = self.models[model_key]
-#             messages = []
-#             if system:
-#                 messages.append({"role": "system", "content": system})
-#             messages.append({"role": "user", "content": prompt})
-#
-#             response = ollama.chat(
-#                 model=cfg["name"],
-#                 messages=messages,
-#                 options={
-#                     "num_ctx": cfg.get("num_ctx", 512),
-#                     "temperature": cfg.get("temperature", 0.1),
-#                 }
-#             )
-#             return response["message"]["content"]
-#
-#         # claude api
-#         elif model_key == "claude":
-#             cfg = self.api_models["claude"]
-#             if not cfg.get("enabled", False):
-#                 return "Claude API is disabled in config."
-#             if cfg.get("ask_permission", True):
-#                 if not self._ask_permission("claude", prompt):
-#                     return "Cancelled. Handling locally instead."
-#             client = anthropic.Anthropic()
-#             message = client.messages.create(
-#                 model=cfg["model"],
-#                 max_tokens=cfg.get("max_tokens", 1000),
-#                 system=system or "You are Jarvis, a helpful AI assistant.",
-#                 messages=[{"role": "user", "content": prompt}]
-#             )
-#             return message.content[0].text
-#
-#         # gemini api
-#         elif model_key == "gemini":
-#             cfg = self.api_models["gemini"]
-#             model = genai.GenerativeModel(cfg["model"])
-#             response = model.generate_content(prompt)
-#             return response.text
-#
-#         else:
-#             raise ValueError(f"Unknown model key: {model_key}")
-#
-#     # ─── intent classification ────────────────────────────────────────────
-#
-#     def classify(self, command: str) -> dict:
-#         """Fast intent classification via phi3:mini."""
-#         system = """You are an intent classifier. Return JSON only, no explanation.
-#             Output format: {"intent": "simple|complex|code|api", "route": "orchestrator|code|claude|gemini"}
-#             simple = basic file/app/system task
-#             complex = multi-step planning needed
-#             code = code generation/editing
-#             api = needs real-time info or long context"""
-#
-#         result = self.query(command, model_key="classifier", system=system)
-#         try:
-#             return json.loads(result)
-#         except json.JSONDecodeError:
-#             return {"intent": "simple", "route": "orchestrator"}  # safe fallback
-#
-#     # ─── plan creation ────────────────────────────────────────────────────
-#
-#     def create_plan(self, command: str) -> dict:
-#         """Orchestrator builds a structured execution plan."""
-#         system = """You are Jarvis, an AI assistant that controls a computer.
-#             Given a command, return a JSON execution plan.
-#             Output format:
-#             {
-#               "summary": "plain english summary of what you will do",
-#               "steps": [
-#                 {"action": "tool_name", "params": {...}},
-#                 ...
-#               ]
-#             }
-#             Available tools: create_file, create_dir, write_code, open_app, read_file,
-#             run_script, web_search, browser_navigate, list_dir, delete_file
-#             Only return JSON. No explanation."""
-#
-#         result = self.query(command, model_key="orchestrator", system=system)
-#         try:
-#             return json.loads(result)
-#         except json.JSONDecodeError:
-#             return {"summary": result, "steps": []}
-#
-#     # ─── main entry point ─────────────────────────────────────────────────
-#
-#     def process(self, command: str) -> dict:
-#         """Classify then route to the right model."""
-#         classification = self.classify(command)
-#         route = classification.get("route", "orchestrator")
-#
-#         if route in ("claude", "gemini"):
-#             # api escalation - just get a response for now
-#             response = self.query(command, model_key=route)
-#             return {"summary": response, "steps": []}
-#         else:
-#             return self.create_plan(command)
-#
-#     # ─── memory / RAG (step 11) ───────────────────────────────────────────
-#
-#     @property
-#     def encoder(self):
-#         """Lazy load encoder only when memory is used."""
-#         if self._encoder is None:
-#             self._encoder = SentenceTransformer('all-MiniLM-L6-v2')
-#         return self._encoder
-#
-#     def add_memory(self, text: str):
-#         vec = self.encoder.encode([text])
-#         self.vector_db.add(vec)
-#         self.memory_texts.append(text)
-#
-#     def query_memory(self, query: str, k: int = 5) -> list:
-#         if not self.memory_texts:
-#             return []
-#         q_vec = self.encoder.encode([query])
-#         _, indices = self.vector_db.search(q_vec, k=k)
-#         return [self.memory_texts[i] for i in indices[0]]
+        # optional but important: forces UI responsiveness immediately
+        try:
+            import threading
+            for t in threading.enumerate():
+                if t != threading.main_thread():
+                    pass
+        except:
+            pass
 
-
-
-
-
-
-# from sentence_transformers import SentenceTransformer
-# import faiss
-# import os
-# import yaml
-# # Example with HuggingFace local LLM
-# from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-# import whisper
-#
-#
-# class Brain:
-#     def __init__(self, config_path="./config.yaml"):
-#         with open(config_path, "r") as f:
-#             self.config = yaml.safe_load(f)
-#         # self.model_path = self.config['llm']['model_path']
-#         model_name = 'base'  # 'tiny.en' change llm model here
-#         self.model = whisper.load_model(model_name, device="cpu")
-#
-#         print(f"Loading local LLM from {model_name}...")
-#         # self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-#         # self.model = AutoModelForCausalLM.from_pretrained(self.model_path)
-#         # self.generator = pipeline("text-generation", model=self.model, tokenizer=self.tokenizer)
-#         #
-#         # # FAISS memory
-#         # self.vector_db = faiss.IndexFlatL2(768) # Placeholder dimension
-#         # self.memory_texts = []
-#
-#     def add_memory(self, text):
-#         # Convert text to vector and add
-#         from sentence_transformers import SentenceTransformer
-#         encoder = SentenceTransformer('all-MiniLM-L6-v2')
-#         vec = encoder.encode([text])
-#         self.vector_db.add(vec)
-#         self.memory_texts.append(text)
-#
-#     def query_memory(self, query):
-#         if len(self.memory_texts) == 0:
-#             return []
-#         encoder = SentenceTransformer('all-MiniLM-L6-v2')
-#         q_vec = encoder.encode([query])
-#         D, I = self.vector_db.search(q_vec, k=5)
-#         return [self.memory_texts[i] for i in I[0]]
-#
-#     def create_plan(self, intent: str):
-#         print(f"Brain received intent: {intent}")
-#         return {
-#             "summary": f"I plan to handle: {intent}",
-#             "tasks": [{"action": "create_file", "filename": "main.py", "content": "print('Hello World')"}]
-#         }
-
-
-
-# from sentence_transformers import SentenceTransformer
-# Example with HuggingFace local LLM
-# from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-
-# import faiss
-# import os
-# import yaml
-
-
-# class Brain:
-#     def __init__(self):
-#         print("Brain (mock) initialized.")
-#
-#     def create_plan(self, intent: str):
-#         print(f"Brain received intent: {intent}")
-#         return {
-#             "summary": f"I plan to handle: {intent}",
-#             "tasks": [{"action": "create_file", "filename": "main.py", "content": "print('Hello World')"}]
-#         }
-
-
-# class Brain:
-#     def __init__(self):
-        # with open(config_path, "r") as f:
-        #     self.config = yaml.safe_load(f)
-        # self.model_path = self.config['llm']['model_path']
-        #
-        # print(f"Loading local LLM from {self.model_path}...")
-        # self.tokenizer = AutoTokenizer.from_pretrained(self.model_path)
-        # self.model = AutoModelForCausalLM.from_pretrained(self.model_path)
-        # self.generator = pipeline("text-generation", model=self.model, tokenizer=self.tokenizer)
-        #
-        # # FAISS memory
-        # self.vector_db = faiss.IndexFlatL2(768)  # Placeholder dimension
-        # self.memory_texts = []
-        # print("Brain (mock) initialized.")
-
-    # def add_memory(self, text):
-        # Convert text to vector
-    #     encoder = SentenceTransformer('all-MiniLM-L6-v2')
-    #     vec = encoder.encode([text])
-    #     self.vector_db.add(vec)
-    #     self.memory_texts.append(text)
-    #     print("Memory added.")
-    #
-    # def query_memory(self, query):
-    #     if len(self.memory_texts) == 0:
-    #         return []
-    #     encoder = SentenceTransformer('all-MiniLM-L6-v2')
-    #     q_vec = encoder.encode([query])
-    #     D, I = self.vector_db.search(q_vec, k=5)
-    #     return [self.memory_texts[i] for i in I[0]]
-
-    # def create_plan(self, intent: str):
-    #     # Query memory for context
-    #     # context = self.query_memory(intent)
-    #     # prompt = f"Context: {context}\nUser intent: {intent}\nPlan steps:"
-    #     # result = self.generator(prompt, max_length=200)[0]['generated_text']
-    #     # self.add_memory(f"Plan for '{intent}': {result}")
-    #     print(f"Brain received intent: {intent}")
-    #     return {
-    #         "summary": result,
-    #         "tasks": [
-    #             {"action": "create_file", "filename": "main.py", "content": "print('Hello World')"}
-    #         ]
-    #     }
-
-
-    # MOCK
-    # def create_plan(self, intent: str):
-    #     print(f"Brain received intent: {intent}")
-    #     return {
-    #         "summary": f"I plan to: {intent}",
-    #         "tasks": [{"action": "create_file", "filename": "main.py", "content": "print('Hello World')"}]
-    #     }

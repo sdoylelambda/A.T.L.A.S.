@@ -1,6 +1,5 @@
-import os
 import subprocess
-import json
+
 from pathlib import Path
 from custom_exceptions import PlanExecutionError
 
@@ -10,7 +9,7 @@ class ToolExecutor:
         self.launcher = app_launcher  # reuse existing launcher, don't duplicate
         self.browser = browser_controller
         self.brain = brain
-        self.workspace = Path("workspace")  # location projects created by Jarvis are stored.
+        self.workspace = Path("workspace")  # location projects created by Atlas are stored.
         self.workspace.mkdir(exist_ok=True)  # create on first run, safe if already exists
 
         self.tools = {
@@ -33,14 +32,15 @@ class ToolExecutor:
 
     # ─── main entry point ─────────────────────────────────────────────────
 
-    async def execute_plan(self, plan: dict, cancelled=None) -> list[str]:
+    async def execute_plan(self, plan: dict, cancelled=None, on_step=None) -> list[str]:
         """
         Execute all steps in a plan.
-        Returns list of result strings for Jarvis to speak.
+        Returns list of result strings for Atlas to speak.
         """
         results = []
-        for step in plan.get("steps", []):
-            # check cancel between each step
+        steps = plan.get("steps", [])
+        total = len(steps)
+        for i, step in enumerate(steps):
             if cancelled and cancelled():
                 print("[ToolExecutor] Cancelled between steps.")
                 break
@@ -48,6 +48,10 @@ class ToolExecutor:
             action = step.get("action")
             params = step.get("params", {})
             tool = self.tools.get(action)
+
+            # report progress before executing
+            if on_step:
+                on_step(i + 1, total, action)  # ← add
 
             if not tool:
                 print(f"[ToolExecutor] Unknown action: {action}")
@@ -130,7 +134,7 @@ class ToolExecutor:
         }
         lang = lang_map.get(ext, "code")
 
-        code = self.brain.query(
+        code = self.brain.query(  # redundant? remove?
             f"Write complete working {lang} code for: {description}.\n"
             f"RULES:\n"
             f"- Return ONLY raw code, nothing else\n"
@@ -143,7 +147,7 @@ class ToolExecutor:
             model_key="code"
         )
 
-        # strip markdown code blocks if model adds them anyway
+        # strip mark down code blocks if model adds them anyway
         if "```" in code:
             lines = code.split("\n")
             lines = [l for l in lines if not l.startswith("```")]

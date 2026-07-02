@@ -30,5 +30,18 @@ env/
 # Config with secrets
 config.yaml
 
-# Projects create by Jarvis
+# Projects create by Atlas
 workspace/
+
+# Remember face location
+.window_pos
+
+# Demo screenshots
+# screenshots/
+
+main.py
+
+api/fastapi_server.py
+
+config/api_keys.py
+

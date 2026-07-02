@@ -1,258 +1,414 @@
-/home/zero/dev/J.A.R.V.I.S/.venv/bin/python /home/zero/dev/J.A.R.V.I.S/main.py
-[Browser] Lazy init ready
-[STT] Loading Whisper...
-[STT] Loading Faster-Whisper...
-[Ears] Selected mic: [0] HDA Intel PCH: ALC3246 Analog (hw:0,0)
-[Ears] Noise floor=1343 start=5374 stop=2687
+ssh zero@$(tailscale ip -4) '
+systemd-run --user --pty \
+  --setenv=DISPLAY=:1 \
+  --setenv=WAYLAND_DISPLAY=wayland-1 \
+  --setenv=XDG_RUNTIME_DIR=/run/user/1000 \
+  --setenv=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus \
+  cd /home/zero/dev/A.T.L.A.S./.venv/bin/python \
+  cd /home/zero/dev/A.T.L.A.S. && python main.py
+'
+ssh zero@$(tailscale ip -4) '
+systemd-run --user --wait \
+/bin/sh -c 'sleep 30'
+
+
+
+
+[] - if atlas is running on pc, join -- don't create new instance
+
+[] - have gui on pc match gui on android
+
+[] - android button to pop up console log
+
+[] - android button to see connectivity to pc status
+
+
+[] - [Ears] Max speech duration reached. -- both mobile and pc -- keeps looping
+
+[Heard]: what's on my calendar tomorrow?
+[Calendar] tomorrow querying timeMin=2026-06-13T00:00:00-04:00 timeMax=2026-06-13T23:59:59-04:00
+[Calendar] found 0 events
+[Observer] Text command: 2+2     --- this should fire while loading the calendar
+
+[Brain] Mistral raw response:  {
+  "summary": "Generating Python script for simple web scraping of star wars characters.",
+  "route": "local",
+  "steps": [
+    {"action": "generate_code", "params": {"path": "sw_characters.py", "description": "Python script using BeautifulSoup to scrape Star Wars characters from official website"}}
+  ]
+}
+[Observer] Text command: what is 4 + 4
+[Heard] what is 4 + 4   --- does not answer this
+
+MOBILE - ANDROID
+
+Start PC
+pkill -f uvicorn
+cd /home/zero/dev/A.T.L.A.S.
+TSHIP=$(tailscale ip -4 | head -n1)
+.venv/bin/uvicorn api.fastapi_server:app --host $TSHIP --port 8000
+
+
 [Observer] Listening and responding...
-[Observer] Pausing ears
-[TTS] Hello sir, what can I do for you.
-[Observer] Ears resumed
-[STT] Using Faster-Whisper (2.2s)
-[STT] Transcription time: 2.1s
-[Timing] STT: 2.12s
-[Heard]: me a joke.
-[Observer] Similarity: 0.00 last='hello sir, what can i do for you.'
-[Brain] Handled by phi3
-[Observer] Pausing ears
-[TTS] Why did the computer go to school? To improve its byte-sized education!
-[Observer] Ears resumed
-[Timing] TTS: 5.90s
-[STT] Using Faster-Whisper (2.0s)
-[STT] Transcription time: 1.5s
-[Timing] STT: 1.53s
-[STT] Too short, skipping: other.
-[Ears] Noise floor=1211 start=4847 stop=2423
-[STT] Using Faster-Whisper (2.5s)
-[STT] Transcription time: 1.6s
-[Timing] STT: 1.63s
-[Heard]: me another joke.
-[Observer] Similarity: 0.00 last='why did the computer go to school? to im'
-[Brain] Handled by phi3
-[Observer] Pausing ears
-[TTS] Why was the computer cold? Because it left its Windows open, sir!
-[Observer] Ears resumed
-[Timing] TTS: 5.09s
-[Ears] Noise floor=1167 start=4669 stop=2334
-[STT] Using Faster-Whisper (4.0s)
-[STT] Transcription time: 1.6s
-[Timing] STT: 1.63s
-[Heard]: what is lambda in greek?
-[Observer] Similarity: 0.00 last='why was the computer cold? because it le'
-[Brain] phi3 response incomplete, forcing ESCALATE
-[Brain] Escalating to Mistral
-[Brain] num_ctx: 1024 (5 words)
-[Observer] Pausing ears
-[TTS] One moment please, sir.
-[Observer] Ears resumed
-[Brain] Mistral raw response:  {
-  "summary": "Determining the Greek translation of 'lambda'.",
-  "route": "claude",
-  "steps": [
-    {"action": "generate_code", "params": {"path": "result.txt", "description": "Greek translation o
-[Brain] Escalating to claude
-[Brain] Model unavailable: claude
-[Observer] Pausing ears
-[TTS] The claude model is unavailable, sir. Handling locally instead.
-[Observer] Ears resumed
-[Brain] num_ctx: 1024 (5 words)
-[Brain] Mistral raw response:  {
-  "summary": "Determining the Greek translation of 'lambda'.",
-  "route": "claude",
-  "steps": [
-    {"action": "generate_code", "params": {"path": "result.txt", "description": "Greek translation o
-[Observer] Pausing ears
-[TTS] Determining the Greek translation of 'lambda'.
-[Observer] Ears resumed
-[Observer] Pausing ears
-[TTS] Shall I proceed, sir?
-[Observer] Ears resumed
-[Observer] Pausing ears
-[TTS] Understood, sir. Cancelled.
-[Observer] Ears resumed
-[Timing] TTS: 28.84s
-[STT] Using Faster-Whisper (1.8s)
-[STT] Transcription time: 1.6s
-[Timing] STT: 1.59s
-[Heard]: take care.
-[Observer] Similarity: 0.00 last='understood, sir. cancelled.'
-[Brain] Handled by phi3
-[Observer] Pausing ears
-[TTS] I'm here to assist you whenever needed, take care of yourself too!
-[Observer] Ears resumed
-[Timing] TTS: 6.98s
-[STT] Using Faster-Whisper (2.5s)
-[STT] Transcription time: 1.6s
-[Timing] STT: 1.60s
-[Heard]: take a break.
-[Observer] Similarity: 0.08 last='i'm here to assist you whenever needed, '
-[Observer] Pausing ears
-[TTS] Going on a break.
-[Observer] Ears resumed
-[Timing] TTS: 1.84s
-[Ears] WARNING: Noise floor too high (5070), using static thresholds
-[Ears] Noise floor=5070 start=8000 stop=4000
-[STT] Using Faster-Whisper (1.6s)
-[STT] Transcription time: 1.5s
-[Timing] STT: 1.54s
-[STT] Too short, skipping: bye.
-[STT] Using Faster-Whisper (2.6s)
-[STT] Transcription time: 1.6s
-[Timing] STT: 1.63s
-[Heard]: artist. you there?
-[Observer] Similarity: 0.00 last='going on a break.'
-[Observer] Pausing ears
-[TTS] For you sir, always.
-[Observer] Ears resumed
-[Timing] TTS: 2.10s
-[STT] Using Faster-Whisper (5.8s)
-[STT] Transcription time: 9.1s
-[Timing] STT: 9.11s
-[STT] Hallucination detected, skipping: ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha ha
-[Ears] Noise floor=1276 start=5104 stop=2552
-[STT] Using Faster-Whisper (2.3s)
-[STT] Transcription time: 1.6s
-[Timing] STT: 1.56s
-[Heard]: 21 more dope.
-[Observer] Similarity: 0.00 last='for you sir, always.'
-[Brain] Handled by phi3
-[Observer] Pausing ears
-[TTS] Understood, I'll continue to provide assistance with the same level of wit and efficiency as before. What can Jarvis help you with next?
-[Observer] Ears resumed
-[Timing] TTS: 9.13s
-[STT] Using Faster-Whisper (2.2s)
-[STT] Transcription time: 1.6s
-[Timing] STT: 1.59s
-[Heard]: me a joke.
-[Observer] Similarity: 0.00 last='understood, i'll continue to provide ass'
-[Brain] Escalating to Mistral
-[Brain] num_ctx: 1024 (3 words)
-[Observer] Pausing ears
-[TTS] One moment please, sir.
-[Brain] Mistral raw response:  {
-  "summary": "Generating a humorous Python joke.",
-  "route": "local",
-  "steps": [
-    {"action": "generate_code", "params": {"path": "joke.py", "description": "Python script that prints a funny j
-[Observer] Pausing ears
-[TTS] Generating a humorous Python joke.
-[Observer] Ears resumed
-[Observer] Pausing ears
-[TTS] Shall I proceed, sir?
-[Observer] Ears resumed
-[Observer] Pausing ears
-[TTS] Understood, sir. Cancelled.
-[Observer] Ears resumed
-[Timing] TTS: 23.09s
-[STT] Using Faster-Whisper (3.1s)
-[STT] Transcription time: 2.1s
-[Timing] STT: 2.07s
-[Heard]: tell me a joke.
-[Observer] Similarity: 0.00 last='understood, sir. cancelled.'
-[Ears] Noise floor=1214 start=4859 stop=2429
-[Brain] phi3 response incomplete, forcing ESCALATE
-[Brain] Escalating to Mistral
-[Brain] num_ctx: 1024 (4 words)
-[Observer] Pausing ears
-[TTS] One moment please, sir.
-[Observer] Ears resumed
-[Brain] Mistral raw response:  {
-  "summary": "Returning a light-hearted joke.",
-  "route": "gemini",
-  "steps": [
-    {"action": "web_search", "params": {"query": "joke"}},
-    {"action": "generate_code", "params": {"path": "joke
-[Brain] Escalating to gemini
-[Brain] Model unavailable: gemini
-[Observer] Pausing ears
-[TTS] The gemini model is unavailable, sir. Handling locally instead.
-[Observer] Ears resumed
-[Brain] num_ctx: 1024 (4 words)
-[Brain] Mistral raw response:  {
-  "summary": "Generating a simple joke.",
-  "route": "local",
-  "steps": [
-    {"action": "generate_code", "params": {"path": "joke.txt", "description": "A text file containing a simple joke"}}
-  ]
-[Observer] Pausing ears
-[TTS] Generating a simple joke.
-[Observer] Ears resumed
-[Observer] Pausing ears
-[TTS] Shall I proceed, sir?
-[Observer] Ears resumed
-[Observer] Pausing ears
-[TTS] Understood, sir. Cancelled.
-[Observer] Ears resumed
-[Timing] TTS: 30.62s
-[Ears] Noise floor=1310 start=5242 stop=2621
-[Ears] Noise floor=1217 start=4868 stop=2434
-[STT] Using Faster-Whisper (2.9s)
-[STT] Transcription time: 1.7s
-[Timing] STT: 1.72s
-[Heard]: me a simple joke.
-[Observer] Similarity: 0.00 last='understood, sir. cancelled.'
-[Brain] phi3 response incomplete, forcing ESCALATE
-[Brain] Escalating to Mistral
-[Brain] num_ctx: 1024 (4 words)
-[Observer] Pausing ears
-[TTS] One moment please, sir.
-[Observer] Ears resumed
-[Brain] Mistral raw response:  {
-  "summary": "Generating a simple joke.",
-  "route": "local",
-  "steps": [
-    {"action": "generate_code", "params": {"path": "joke.txt", "description": "A text file containing a simple joke"}}
-  ]
-[Observer] Pausing ears
-[TTS] Generating a simple joke.
-[Observer] Ears resumed
-[Observer] Pausing ears
-[TTS] Shall I proceed, sir?
-[Observer] Ears resumed
-[Ears] Noise floor=2722 start=10889 stop=5444
-[Observer] Pausing ears
-[TTS] Understood, sir. Cancelled.
-[Observer] Ears resumed
-[Timing] TTS: 25.01s
-[Ears] Noise floor=1237 start=4950 stop=2475
+[Atlas API] Hello sir, what can I do for you.
+[Atlas API] Command queued: what is 5 plus 5
+INFO:     100.122.203.89:37868 - "POST /command HTTP/1.1" 504 Gateway Timeout
 
-
-brain:
-User: tell me a joke
-            Jarvis: Why don't scientists trust atoms? Because they make up everything, sir.
-
-made it 2 sentences max
-
-[Heard]: what is zero divided by zero?
-[Observer] Similarity: 0.00 last='understood, sir. cancelled.'
-[Brain] Escalating to Mistral
-[Brain] num_ctx: 1024 (6 words)
-[Observer] Pausing ears
-[TTS] One moment please, sir.
-[Ears] Noise floor=1136 start=4544 stop=2272
-[Observer] Ears resumed
-[Brain] Mistral raw response:  {
-  "summary": "Calculating zero divided by zero.",
-  "route": "gemini",
-  "steps": [
-    {"action": "generate_code", "params": {"path": "result.txt", "description": "Python code to calculate zero di
-[Brain] Escalating to gemini
-[Brain] Model unavailable: gemini
-[Observer] Pausing ears
-[TTS] The gemini model is unavailable, sir. Handling locally instead.
-[Observer] Ears resumed
-[Brain] num_ctx: 1024 (6 words)
-[Brain] Mistral raw response:  {
-  "summary": "Calculating zero divided by zero.",
-  "route": "gemini",
-  "steps": [
-    {"action": "generate_code", "params": {"path": "result.txt", "description": "Python code to calculate zero di
-[Observer] Pausing ears
-[TTS] Calculating zero divided by zero.
-[Observer] Ears resumed
-[Observer] Pausing ears
-[TTS] Shall I proceed, sir?
+still cut off after 2-3 seconds
+or
+STT: error_busy - on voice commands
+or
+'nothing heard' even tho app shows heard text
+or
+on button press get beep and message is not recorded - have to press button again and retry
 
 
 
-should we make prompt shorter?
+
+
+phone heard 'tell me a joke', computer heard 'tell me'
+
+[Observer] Text command: what's
+[Heard]: what's
+[Atlas API] Heard: what's
+[Memory] Searching for: what's
+
+always listen - every 5 seconds - ba ba beep
+response given on computer but not sent to phone
+then
+INFO:     100.122.203.89:54032 - "POST /command HTTP/1.1" 504 Gateway Timeout
+INFO:     100.122.203.89:54034 - "POST /command HTTP/1.1" 504 Gateway Timeout
+[Ears] Max speech duration reached.
+
+does not send approval request to mobile
+
+[Ears] Max speech duration reached. - with ptt enabled - pc speakers off
+
+still cuts off on ptt after about 2-3 seconds - no error now
+
+cancel button has no audio
+
+error - just says error no description of error
+
+
+[Memory] Context loaded: Wake-up text (~792 tokens): --- how many can be stored?
+
+calendar and follow-up commands don't work on termux -- they work as text commands on gui
+face.on_command = handle_text_input --- probably here on main.py
+
+escalation for non code -- increase cutoff? + mistral (or other) for complex questions
+
+GUI display on Termux mobile connect
+
+print ctx for deepseek
+
+add mute atlas - turn tts off
+mute and speakers off on termux? just add terminal commands?
+
+goodbye message
+
+hide ip address on termux log in
+
+boots on listening -> thinking
+
+google maps integration?
+
+enter fix for browser commands
+
+gmail switch to inbox instead of all mail? --- maybe all mail better.
+    Atlas can flag anything that may have ended up here that is important. ignore the rest
+    what about security risks? as long as not opening attachments = safe?
+
+more tests
+
+PDF - which file is found? should be the most recent timestamp
+
+config.yaml - mobile: mouth, face, and ears disabled
+
+is deepseek writing code?
+
+
+
+
+Below is a drop-in Feature Builder module designed to plug directly into Atlas.
+
+It gives you:
+
+🧠 Natural language → feature specification
+🧱 Structured feature generation (files + architecture)
+🔐 Safety confirmation gate
+🔌 ToolExecutor-compatible file writing
+📦 Modular plugin output (modules/features/...)
+🧭 Observer integration hook
+🔥 feature_builder.py (DROP-IN MODULE)
+import os
+import json
+from datetime import datetime
+
+
+class FeatureBuilder:
+    """
+    Atlas Feature Builder
+    Converts natural language requests into modular Atlas features.
+    """
+
+    def __init__(self, brain, tool_executor, observer, config=None):
+        self.brain = brain
+        self.tools = tool_executor
+        self.observer = observer
+        self.config = config or {}
+        self.feature_root = "modules/features"
+        self.pending_feature = None
+
+    # ─────────────────────────────────────────────
+    # ENTRY POINT
+    # ─────────────────────────────────────────────
+    async def handle_request(self, text: str):
+        """
+        Main entry point for feature creation requests.
+        """
+
+        feature_name = self._extract_feature_name(text)
+
+        print(f"[FeatureBuilder] Requested: {feature_name}")
+
+        plan = await self._generate_feature_plan(text, feature_name)
+
+        self.pending_feature = plan
+
+        return self._ask_confirmation(plan)
+
+    # ─────────────────────────────────────────────
+    # STEP 1 — FEATURE NAME EXTRACTION
+    # ─────────────────────────────────────────────
+    def _extract_feature_name(self, text: str) -> str:
+        """
+        Extract feature name from command.
+        """
+        try:
+            lower = text.lower()
+            if "called" in lower:
+                return lower.split("called")[1].split("that allows")[0].strip().replace(" ", "_")
+            return "custom_feature_" + datetime.now().strftime("%H%M%S")
+        except:
+            return "custom_feature"
+
+    # ─────────────────────────────────────────────
+    # STEP 2 — MISTRAL FEATURE DESIGN
+    # ─────────────────────────────────────────────
+    async def _generate_feature_plan(self, text: str, feature_name: str):
+        """
+        Ask Mistral to design full feature architecture.
+        """
+
+        prompt = f"""
+You are Atlas Feature Builder.
+
+Design a fully working modular feature for A.T.L.A.S.
+
+User request:
+{text}
+
+Feature name:
+{feature_name}
+
+Return STRICT JSON ONLY:
+
+{{
+  "feature_name": "{feature_name}",
+  "summary": "...",
+  "files": [
+    {{
+      "path": "modules/features/{feature_name}/controller.py",
+      "content": "..."
+    }},
+    {{
+      "path": "modules/features/{feature_name}/handler.py",
+      "content": "..."
+    }}
+  ],
+  "register_code": "...python register(observer, brain, tools) function...",
+  "dependencies": []
+}}
+
+Rules:
+- Must integrate with Atlas observer system
+- Must be safe and modular
+- Must NOT modify unrelated files
+- Must include a register() function
+"""
+
+        response = await self.brain.generate(
+            prompt=prompt,
+            model="mistral",
+            temperature=0.2,
+            max_tokens=2000
+        )
+
+        try:
+            return json.loads(response)
+        except Exception as e:
+            print("[FeatureBuilder] JSON parse failed:", e)
+            return None
+
+    # ─────────────────────────────────────────────
+    # STEP 3 — CONFIRMATION GATE
+    # ─────────────────────────────────────────────
+    def _ask_confirmation(self, plan: dict):
+        if not plan:
+            return "Failed to generate feature plan."
+
+        summary = plan.get("summary", "No summary available")
+
+        return f"""
+[Atlas Feature Builder]
+
+I will create a new feature: {plan['feature_name']}
+
+Summary:
+{summary}
+
+This will create {len(plan.get('files', []))} file(s).
+
+Shall I proceed, sir?
+"""
+
+    # ─────────────────────────────────────────────
+    # STEP 4 — EXECUTION (FILE CREATION)
+    # ─────────────────────────────────────────────
+    async def execute(self, approved: bool):
+        """
+        Execute feature creation after confirmation.
+        """
+
+        if not approved:
+            self.pending_feature = None
+            return "Feature creation cancelled."
+
+        plan = self.pending_feature
+        if not plan:
+            return "No pending feature."
+
+        feature_name = plan["feature_name"]
+        base_path = os.path.join(self.feature_root, feature_name)
+
+        os.makedirs(base_path, exist_ok=True)
+
+        created_files = []
+
+        # ── Create files ─────────────────────────────
+        for file in plan.get("files", []):
+            path = file["path"]
+            content = file["content"]
+
+            try:
+                self.tools.create_file(path, content)
+                created_files.append(path)
+                print(f"[FeatureBuilder] Created: {path}")
+
+            except Exception as e:
+                print(f"[FeatureBuilder] Failed file {path}: {e}")
+
+        # ── Write register hook ──────────────────────
+        register_path = os.path.join(base_path, "register.py")
+
+        register_code = plan.get("register_code", "")
+
+        if register_code:
+            self.tools.create_file(register_path, register_code)
+            created_files.append(register_path)
+
+        self.pending_feature = None
+
+        return f"""
+[Atlas Feature Builder]
+
+Feature '{feature_name}' created successfully.
+
+Files created:
+{chr(10).join(created_files)}
+
+Run 'enable feature {feature_name}' to activate it.
+"""
+
+    # ─────────────────────────────────────────────
+    # STEP 5 — OBSERVER HOOK
+    # ─────────────────────────────────────────────
+    def attach(self):
+        """
+        Attach handler into observer routing system.
+        """
+
+        def handler(text):
+            if text.lower().startswith("add a new feature"):
+                return self.handle_request(text)
+            return None
+
+        self.observer.register_handler("feature_builder", handler)
+🔌 HOW TO INTEGRATE IT
+1. Initialize in main system
+feature_builder = FeatureBuilder(
+    brain=brain,
+    tool_executor=tool_executor,
+    observer=observer
+)
+
+feature_builder.attach()
+2. Add routing rule in Observer
+if text.startswith("add a new feature"):
+    return "feature_builder"
+3. Hook confirmation response
+
+In your observer “yes/no” handler:
+
+if feature_builder.pending_feature:
+    if text in ["yes", "yeah", "do it", "go ahead"]:
+        return await feature_builder.execute(True)
+⚡ WHAT THIS GIVES YOU
+
+You now have:
+
+🧠 AI Feature Autogenerator
+
+Atlas can design modules it didn’t previously have.
+
+🧱 Structured plugin system
+
+Every feature becomes:
+
+modules/features/{name}/
+🔐 Safe execution gate
+
+Nothing runs without confirmation.
+
+🔌 Clean integration layer
+
+No random workspace dumping anymore.
+
+🚀 NEXT LEVEL (optional upgrades I can build for you)
+
+If you want to push this further, I can add:
+
+1. 🔄 Feature hot-reload system
+
+No restart needed when new features are created
+
+2. 🧠 Feature self-improvement loop
+
+Atlas can update its own features over time
+
+3. 🧩 Feature dependency resolver
+
+“light controller depends on mqtt module”
+
+4. 🛍️ Feature marketplace
+
+Install features like plugins:
+
+install feature weather radar
+5. 🧪 Sandbox mode
+
+Test generated feature before activation
+
+If you want next step, I recommend:
+👉 “make Atlas automatically register and activate new features immediately after creation”

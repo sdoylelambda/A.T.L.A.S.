@@ -1,21 +1,308 @@
-# J.A.R.V.I.S
-### Just A Rather Very Intelligent System
+<p align="center">
+  <img src="https://img.shields.io/badge/Atlas-AI%20Assistant-8A2BE2?style=for-the-badge" />
+</p>
 
-A fully local, voice-controlled AI assistant for Linux. Jarvis listens for voice commands, understands natural language, and can create files, write code, search the web, open applications, and much more — all with near-instant response for simple commands and intelligent escalation to more powerful models for complex tasks.
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+  <img src="https://img.shields.io/badge/license-MIT-2ea44f?style=for-the-badge" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/AI-Local%20or%20API-00C853?style=for-the-badge" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" />
+  <img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white" />
+  <img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" />
+  <img src="https://img.shields.io/badge/Android-34A853?style=for-the-badge&logo=android&logoColor=white" />
+</p>
+
+# A.T.L.A.S.
+### Autonomous Task and Local AI System
+
+A fully local, voice-controlled AI assistant for Linux — inspired by the AI assistants 
+of science fiction, built for the real world. Runs completely on your own hardware with 
+no data leaving your machine by default. Optionally connects to Claude and Gemini APIs 
+for long-context reasoning and real-time information — always with your explicit permission.
+
+---
+
+## Why Atlas?
+
+Most voice assistants send your data to the cloud. Atlas runs entirely 
+on your hardware — your conversations, your files, your code never leave 
+your machine. Cloud models are available but always opt-in and always 
+announced before use.
+
+Atlas can answer questions, tell jokes, and hold a conversation.
+Atlas can open applications, control your browser, search the web, and navigate pages.
+Atlas can create files and folders, and generate code in Python, JavaScript, HTML, and more.
+Atlas can read files, run scripts, and manage your workspace.
+Atlas also has vision through your webcam — able to see what’s in front of it, identify objects,
+read text, and answer questions about what it sees. Atlas has access to Gemini for real-time information
+and Claude for long document analysis. It can also check and manage your calendar. You can even use Atlas
+on the go with your Android device!
+
+---
+
+## GUI
+
+The GUI is a PyQt5 window with a vispy 3D particle orb embedded above a control panel.
+
+### Orb States
+| State | Color | Animation |
+|-------|-------|-----------|
+| Listening | Blue | Slow gentle pulse |
+| Thinking | Green | Medium pulse, more particles |
+| Speaking | Light blue | Fast pulse |
+| Sleeping | Yellow | Very slow deep breath, sparse particles |
+| Error | Red | Rapid jitter |
+
+The orb features per-particle color variation, depth-based size variation, and beam line connections between nearby particles for a holographic look. Each state has distinct particle density, breathing speed, and connection density.
+
+<div align="center">
+  <img src="screenshots/GUI_welcome_screen.png" alt="Listening" width="200"/>
+  <img src="screenshots/GUI_thinking_screen.png" alt="Thinking" width="200"/>
+  <img src="screenshots/GUI_talking_screen.png" alt="Speaking" width="200"/>
+  <img src="screenshots/GUI_sleeping_screen.png" alt="Speaking" width="200"/>
+  <img src="screenshots/GUI_error_screen.png" alt="Error" width="200"/>
+</div>
+
+
+> Orb particle colors are defined in `face.py` `COLORS` dict. 
+> GUI chrome colors are configurable via `config.yaml` under the `gui` section.
+
+### Caption Area
+Displays real-time status as Atlas works:
+```
+Classifying...
+Planning...
+Step 1 of 3: create_dir...
+Step 2 of 3: generate_code...
+Waiting for confirmation...
+Done, code written to: workspace/project/file.js
+```
+Shows spoken text when Atlas is speaking, clears automatically after.
 
 ---
 
 ## Overview
 
-Jarvis is built around a layered intelligence architecture:
+Atlas is built around a layered intelligence architecture:
 
 1. **Fast keyword layer** — instant response for known commands (open apps, wake words, pause)
 2. **phi3:mini** — handles simple conversational questions directly, escalates everything else
 3. **Mistral 7B** — orchestrates complex multi-step tasks and generates structured execution plans
 4. **DeepSeek Coder 6.7B** — dedicated code generation model, handles all code files
 5. **Cloud APIs** — Claude and Gemini available for long-context reasoning and real-time information (opt-in, permission required)
+6. **LLaVA** — local vision model, analyzes webcam frames for object identification, 
+   scene description, and text reading
+7. **MemPalace** - controlled memory recall and formatting pipeline
 
 All core functionality runs **completely locally** on your machine. No data leaves your computer unless you explicitly approve it.
+
+---
+
+## Feature Roadmap
+
+### Complete
+- [x] Voice input (Whisper + Faster-Whisper hybrid STT)
+- [x] Voice output (Piper TTS) with British male voice, speed and pitch control
+- [x] PyQt5 GUI with embedded vispy 3D particle orb
+- [x] Five orb states — listening, thinking, speaking, sleeping, error
+- [x] Per-particle color variation and depth-based size variation
+- [x] Beam line connections for holographic look
+- [x] Smooth sin-wave breathing animation per state
+- [x] Real-time caption display — Brain status and spoken text
+- [x] Cancel button — stops current task instantly
+- [x] Mute button — toggles microphone
+- [x] Text input field — type commands directly
+- [x] Wake word / sleep commands
+- [x] Fast keyword command layer
+- [x] App launching
+- [x] Browser control (Playwright) with scroll, zoom, click, navigate, YouTube
+- [x] Context-aware keyboard shortcuts
+- [x] Ollama local LLM integration
+- [x] phi3:mini fast classifier with ESCALATE guardrails
+- [x] Mistral orchestrator with structured JSON plans
+- [x] Dynamic context window sizing based on command complexity
+- [x] DeepSeek Coder for all code generation (Python, JS, HTML, CSS, Dart, etc.)
+- [x] Tool execution layer (files, folders, code, browser, web search)
+- [x] Privacy-first API permission system
+- [x] Hallucination and echo loop filters
+- [x] Echo cancellation (ears paused during TTS + buffer flush)
+- [x] Plan → Confirm → Execute flow with live step progress in GUI
+- [x] File overwrite confirmation
+- [x] Cancel between execution steps
+- [x] Command queue — speak next command while Brain is working
+- [x] "One moment please" for slow Brain responses
+- [x] Dynamic noise floor calibration (auto-adjusts to environment every 20s)
+- [x] ALSA stream recovery with exponential backoff
+- [x] Stream lock preventing concurrent mic access crashes (SIGABRT/SIGSEGV)
+- [x] DeepSeek explanation stripper — fluff auto-commented at bottom of file
+- [x] Gemini API routing
+- [x] Claude API routing
+- [x] Google calendar integration and control
+- [x] Camera integration to view and assess real scenarios
+- [x] Screen / vision support (LLaVA)
+- [x] Config-driven GUI colors — border, background, text, buttons all configurable via config.yaml
+- [x] Android SSH access via Termux
+- [x] Gmail integration and control
+- [x] Summarize screenshot
+- [x] Summarize PDF
+- [x] Persistent memory and user preferences
+- [x] Add way user wants to be addressed to config.yaml (sir, ma'am, John, Jane, etc.)
+- [x] REST interface for mobile clients
+- [x] App - Mobile client for Android and iOS - native phone mic, speakers, camera
+
+### Planned
+- [ ] Self-expanding fast keyword layer
+- [ ] RAG over local notes and files
+- [ ] Research topic 
+- [ ] Phone camera integration via IP Webcam app
+- [ ] Push-to-talk mode
+- [ ] Slack alerts
+- [ ] Text alerts
+- [ ] Follow-up commands
+- [ ] n8n integration
+- [ ] Function Gemma - live data; weather, stock prices, etc.
+- [ ] Mac and PC versions
+- [ ] Camera add more features
+  - [ ] Gemini Vision fallback — for complex analysis
+  - [ ] "analyze this diagram"
+  - [ ] "what's wrong with this code" ← hold code up to camera
+  - [ ] "summarize this document"
+  - [ ] Use mobile phone's camera 
+- [ ] Learn new feature - Simply speak feature to add and code is implemented 
+- [ ] Auto calendar alerts
+- [ ] Auto check email - notify - respond
+- [ ] Additional voice controlled app integrations
+- [ ] Real time weather monitoring with alerts
+- [ ] GUI detailed logs and errors
+- [ ] Send errors with permission
+
+---
+
+## Project Structure
+
+```
+A.T.L.A.S/
+├── main.py
+├── config.yaml
+├── config.example.yaml
+├── custom_exceptions.py
+│
+├── config/
+│   └── api_keys.py
+│
+├── modules/
+│   ├── gmail/
+│   │   ├── email_drafter.py
+│   │   ├── email_monitor.py
+│   │   └── gmail_module.py
+│   │
+│   ├── observer/
+│   │   ├── observer.py
+│   │   ├── calendar_handler.py
+│   │   ├── document_handler.py
+│   │   ├── eyes_handler.py
+│   │   └── gmail_handler.py
+│   │
+│   ├── stt/
+│   │   └── hybrid_stt.py
+│   │
+│   ├── voices/
+│   │
+│   ├── app_launcher.py
+│   ├── brain.py
+│   ├── browser_controller.py
+│   ├── calendar_module.py
+│   ├── ears.py
+│   ├── eyes.py
+│   ├── face.py
+│   ├── mouth.py
+│   ├── tool_executor.py
+│   └── window_controller.py
+│
+├── workspace/
+├── screenshots/
+├── notes/
+├── tests/
+```
+
+---
+
+## Key Components
+
+### 🧠 Core System
+
+- **main.py** — Entry point. Launches the PyQt5 interface and async observer loop.
+- **brain.py** — Handles LLM routing, planning, and decision-making.
+- **observer/** — Central command router.  
+  Interprets voice/text input and dispatches actions to the correct module.
+
+---
+
+### 🎤 Input / Output
+
+- **ears.py** — Microphone input with dynamic noise calibration.
+- **mouth.py** — Text-to-speech using Piper.
+- **face.py** — PyQt5 GUI (orb, expressions, captions, controls).
+- **stt/hybrid_stt.py** — Speech-to-text (Whisper + Faster-Whisper).
+
+---
+
+### 👁️ Vision System
+
+- **eyes.py** — Webcam + screen vision using LLaVA.
+- **eyes_handler.py** — Converts user commands into vision actions.
+- **screenshots/** — Stores captured images for analysis (created at runtime).
+
+---
+
+### 📬 Integrations
+
+- **gmail/**  
+  - `gmail_module.py` — Authentication + core Gmail operations  
+  - `email_monitor.py` — Watches inbox for important messages  
+  - `email_drafter.py` — Generates replies using LLMs  
+
+- **calendar_module.py** — Google Calendar integration  
+- **calendar_handler.py** — Parses user commands into calendar actions  
+
+---
+
+### 🌐 Automation
+
+- **browser_controller.py** — Web automation via Playwright  
+- **window_controller.py** — Controls and navigates desktop applications  
+- **app_launcher.py** — Fast keyword-based app launching  
+- **tool_executor.py** — Executes generated plans (files, scripts, tasks)
+
+---
+
+### 📁 Workspaces & Data
+
+- **workspace/** — User-controlled file operations (gitignored)  
+- **notes/** — Development notes, planned features, known issues  
+- **tests/** — Test scripts and experimental components  
+
+---
+
+### 🔐 Configuration
+
+- **config.yaml** — Local user configuration (not committed)  
+- **config.example.yaml** — Template for setup  
+- **config/api_keys.py** — Secure API key storage via OS keyring  
+
+---
+
+## Notes
+
+- Some directories (e.g., `workspace/`, `screenshots/`) are created automatically on first use.
+- Screenshot storage may grow over time — users are notified when it becomes large.
+- Sensitive data (API keys, config) is never stored directly in the repository.
 
 ---
 
@@ -28,6 +315,7 @@ All core functionality runs **completely locally** on your machine. No data leav
 | File/code tools | ✅ | ✅ | ✅ |
 | App launching | ✅ | ⚠️ | ⚠️ |
 | Browser control | ✅ | ✅ | ✅ |
+| GUI | ✅ | ✅ | ✅ |
 
 ⚠️ = works with minor path configuration
 
@@ -39,211 +327,62 @@ All core functionality runs **completely locally** on your machine. No data leav
 
 ## System Requirements
 
-- Linux (tested on Pop!_OS)
+- Linux (tested on Pop!_OS with COSMIC desktop)
 - Python 3.11+
 - 16GB RAM minimum
-- GPU optional (NVIDIA sm_70+ for CUDA) — falls back to CPU automatically
+- GPU optional (NVIDIA recommended) — falls back to CPU automatically
 - Microphone (headset strongly recommended — internal mics pick up background noise)
 - Speakers or headphones
 
 ---
 
-## Setup Checklist
-
-### System Dependencies
-- [ ] Python 3.11+
-- [ ] `pip` and `venv`
-- [ ] `ffmpeg` — required by Whisper for audio processing
-  ```bash
-  sudo apt install ffmpeg
-  ```
-- [ ] `portaudio` — required for microphone input
-  ```bash
-  sudo apt install portaudio19-dev
-  ```
-- [ ] Playwright system dependencies
-  ```bash
-  playwright install chromium
-  playwright install-deps
-  ```
-
-### Ollama + Local Models
-- [ ] Install Ollama
-  ```bash
-  curl -fsSL https://ollama.com/install.sh | sh
-  ```
-- [ ] Pull Mistral (orchestrator)
-  ```bash
-  ollama pull mistral
-  ```
-- [ ] Pull phi3:mini (fast classifier)
-  ```bash
-  ollama pull phi3:mini
-  ```
-- [ ] Pull DeepSeek Coder (code generation)
-  ```bash
-  ollama pull deepseek-coder:6.7b
-  ```
-- [ ] Verify models are running
-  ```bash
-  ollama list
-  ollama run mistral "say hello"
-  ollama run phi3:mini "say hello"
-  ollama run deepseek-coder:6.7b "say hello"
-  ```
-
-### Python Environment
-- [ ] Create and activate virtual environment
-  ```bash
-  python -m venv .venv
-  source .venv/bin/activate
-  ```
-- [ ] Install Python dependencies
-  ```bash
-  pip install ollama
-  pip install openai-whisper
-  pip install faster-whisper
-  pip install piper-tts
-  pip install pyaudio
-  pip install simpleaudio
-  pip install numpy
-  pip install playwright
-  pip install pyyaml
-  pip install anthropic               # Claude API (optional)
-  pip install google-genai            # Gemini API (optional)
-  ```
-- [ ] Install Playwright browser
-  ```bash
-  playwright install chromium
-  ```
-
-### Configuration
-- [ ] Copy and edit config
-  ```bash
-  cp config.example.yaml config.yaml
-  ```
-- [ ] Set `audio.use_mock: false` for real microphone
-- [ ] Set `system.use_gpu: true` if you have a compatible NVIDIA GPU (sm_70+)
-- [ ] Add API keys if using cloud models (optional)
-  ```yaml
-  api_keys:
-    anthropic: "your-key-here"
-    google: "your-key-here"
-  ```
-
-### API Keys (Optional)
-- [ ] Anthropic (Claude) — https://console.anthropic.com
-- [ ] Google (Gemini) — https://console.cloud.google.com
-- [ ] Set `api_models.claude.enabled: true` and/or `api_models.gemini.enabled: true` in config to activate
-
-### Workspace
-- [ ] `workspace/` directory is created automatically on first run
-- [ ] Add to `.gitignore`:
-  ```
-  workspace/
-  .venv/
-  config.yaml
-  ```
-
----
-
-## Project Structure
-
-```
-J.A.R.V.I.S/
-├── main.py                  # Entry point
-├── config.yaml              # Your local config (gitignored)
-├── config.example.yaml      # Template config to share
-├── custom_exceptions.py     # PermissionRequired, ModelUnavailable, PlanExecutionError
-├── workspace/               # Where Jarvis creates files (gitignored)
-├── modules/
-│   ├── observer.py          # Main loop — listens, routes, responds
-│   ├── brain.py             # LLM routing and plan generation
-│   ├── tool_executor.py     # Executes plans (create files, run scripts, etc.)
-│   ├── app_launcher.py      # Fast keyword-based app launching
-│   ├── browser_controller.py # Playwright browser automation
-│   ├── ears.py              # Microphone input with dynamic noise calibration
-│   ├── tts.py               # Text-to-speech (Piper)
-│   └── stt/
-│       └── hybrid_stt.py    # Speech-to-text (Whisper + Faster-Whisper)
-```
-
----
-
-## config.yaml Reference
-
-```yaml
-llm:
-  enabled: true
-  backend: local
-
-  models:
-    orchestrator:
-      name: mistral
-      num_ctx: 4096       # dynamically overridden based on command complexity
-      temperature: 0.2    # low-medium: consistent JSON output
-      max_tokens: 500     # cap output length
-    classifier:
-      name: phi3:mini
-      num_ctx: 512
-      temperature: 0.0    # deterministic: no creativity needed
-      max_tokens: 50      # hard cap — one sentence max
-    code:
-      name: deepseek-coder:6.7b
-      num_ctx: 4096       # longer context for full code output
-      temperature: 0.1    # nearly deterministic: correct over creative
-
-  api_models:
-    claude:
-      enabled: false      # set true + add API key to activate
-      model: claude-opus-4-6
-      max_tokens: 1000
-      ask_permission: true  # always ask before sending data externally
-    gemini:
-      enabled: false
-      model: gemini-pro
-      ask_permission: true
-
-system:
-  use_gpu: false          # set true if you have a compatible GPU (sm_70+)
-
-audio:
-  use_mock: false         # set true to disable mic for testing
-  calibration_interval: 20  # recalibrate noise floor every N seconds
-  pre_speech_timeout: 3.0   # give up waiting for speech after 3s of silence
-  max_speech_duration: 25.0 # hard cap on recording length
-  silence_seconds: 1.5      # stop recording after this much silence post-speech
-  start_multiplier: 4.0     # start_threshold = noise_floor * this
-  stop_multiplier: 2.0      # stop_threshold = noise_floor * this
-```
-
----
-
-## Running Jarvis
+## Running Atlas
 
 ```bash
 source .venv/bin/activate
 python main.py
 ```
 
-Jarvis will calibrate the microphone noise floor, then say **"Hello sir, what can I do for you"** when ready.
+Atlas will calibrate the microphone noise floor, open the GUI, then say **"Hello sir, what can I do for you"** when ready.
 
 ---
 
-## Voice Commands
+### Controls
+| Control           | Function                                         |
+|-------------------|--------------------------------------------------|
+| Voice input       | Handles command and speaks response back         |
+| Text input + Send | Type commands directly, bypasses voice           |
+| Cancel button     | Stops current task, returns to listening         |
+| Mute button       | Toggles microphone on/off, turns red when active |
+
+---
+
+## Voice/Text Commands
+
+### Memory
+| Say                                                  | Result |
+|------------------------------------------------------|--------|
+| `remember that I prefer async python over threading` | Stores preference in long-term memory |
+| `remember this: my project uses Node and React`      | Saves custom fact for future recall |
+| `what do you remember about me`                      | Retrieves stored preferences and facts |
+| `do I prefer async python or threading`              | Recalls relevant memory and answers accordingly |
+| `save this conversation`                             | Stores current interaction in memory |
+| `what have we talked about`                          | Retrieves recent or relevant past conversations |
+| `clear memory`                                       | Clears stored memory (if enabled/allowed) |
+| `forget that I like X`                               | Removes a specific stored memory |
 
 ### Wake / Sleep
 | Say | Result |
 |-----|--------|
-| `Jarvis` or `you there` | Wake from sleep |
+| `Atlas` or `you there` | Wake from sleep |
 | `take a break` or `pause` | Go to sleep |
 
-### Cancel / Confirm
-| Say | Result |
-|-----|--------|
-| `cancel`, `stop`, `never mind`, `forget it` | Cancel current action |
-| `yes`, `yeah`, `do it`, `go ahead` | Confirm pending action |
-| `overwrite`, `over write`, `replace` | Confirm overwriting existing file |
+### Confirm / Cancel
+| Say                                         | Result                            |
+|---------------------------------------------|-----------------------------------|
+| `yes`, `yeah`, `do it`, `go ahead`          | Confirm pending action            |
+| `cancel`, `stop`, `never mind`, `forget it` | Cancel current action             |
+| `overwrite`, `over write`, `replace`        | Confirm overwriting existing file |
 
 ### Apps
 | Say | Result |
@@ -269,21 +408,19 @@ Jarvis will calibrate the microphone noise floor, then say **"Hello sir, what ca
 | `create a folder called bot with a file called bot.py that has an AI assistant class` | Multi-step with code generation |
 
 ### Web & Browser
-| Say | Result |
-|-----|--------|
-| `google latest AI news` | Opens browser, searches Google |
-| `youtube lo-fi music` | Opens YouTube search |
-| `search for python tutorials` | Google search |
-| `navigate to github.com` | Opens URL directly |
-| `scroll down` / `go down` | Scroll page down |
-| `scroll up` / `go up` | Scroll page up |
-| `go back` / `go forward` | Browser navigation |
-| `refresh` / `reload` | Reload page |
-| `new tab` / `close tab` | Tab management |
-| `click first result` | Clicks first search result |
-| `zoom in` / `zoom out` / `zoom reset` | Page zoom |
-| `find` | Open browser find bar |
-| `full screen` | Toggle fullscreen |
+| Say                                   | Result                         |
+|---------------------------------------|--------------------------------|
+| `google latest AI news`               | Opens browser, searches Google |
+| `youtube classical music`             | Opens YouTube search           |
+| `navigate to github.com`              | Opens URL directly             |
+| `scroll down` / `go down`             | Scroll page down               |
+| `scroll up` / `go up`                 | Scroll page up                 |
+| `go back` / `go forward`              | Browser navigation             |
+| `refresh` / `reload`                  | Reload page                    |
+| `new tab` / `close tab`               | Tab management                 |
+| `click first result`                  | Clicks first search result     |
+| `zoom in` / `zoom out` / `zoom reset` | Page zoom                      |
+| `full screen`                         | Toggle fullscreen              |
 
 ### Keyboard Shortcuts (Context-Aware)
 | Say | Result |
@@ -296,11 +433,480 @@ Jarvis will calibrate the microphone noise floor, then say **"Hello sir, what ca
 | `close` | Ctrl+W |
 
 ### Conversation & Facts
+| Say                            | Result                                                  |
+|--------------------------------|---------------------------------------------------------|
+| `what's the capital of France` | Instant answer via phi3                                 |
+| `tell me a joke`               | Dry British wit                                         |
+| `how are you today`            | Atlas responds in character                             |
+| `what can you do`              | Atlas responds dynamically with enabled features listed |
+
+---
+
+### Calendar
+| Say                                     | Result                               |
+|-----------------------------------------|--------------------------------------|
+| `what do I have today`                  | Today's events                       |
+| `what's on my schedule today`           | Today's events                       |
+| `what do I have tomorrow`               | Tomorrow's events                    |
+| `what's on my calendar tomorrow`        | Tomorrow's events                    |
+| `what do I have this week`              | Events for next 7 days               |
+| `upcoming events`                       | Events for next 7 days               |
+| `when is my next meeting`               | Next upcoming event                  |
+| `what's next`                           | Next upcoming event                  |
+| `add meeting friday at 2pm`             | Create event — parsed directly       |
+| `add meeting friday at 2pm for 2 hours` | Create event with duration           |
+| `schedule a meeting tomorrow at 9:30am` | Create event                         |
+| `add an event`                          | Guided flow — Atlas asks for details |
+
+### Gmail
+| Say                       | Result                                                                                 |
+|---------------------------|----------------------------------------------------------------------------------------|
+| `check my emails`         | Checks last 5 emails                                                                   |
+| `any new emails`          | Checks last 5 emails                                                                   |
+| `anything important`      | Mistral determines importance                                                          |
+| `anything urgent`         | Mistral determines importance                                                          |
+| `analyze my inbox`        | Mistral determines importance                                                          |
+| `emails from {name}`      | Checks for emails from {name}                                                          |
+| `email from {name}`       | Checks for email from {name}                                                           |
+| `read that email`         | Reads specific email                                                                   |
+| `read the first email`    | Reads last email                                                                       |
+| `reply to {name}`         | Creats a draft with generated message                                                  |
+| `respond to {name}`       | Creats a draft with generated message                                                  |
+| `send an email to {name}` | Guided flow — Atlas asks for details                                                   |
+| `check for meetings`      | Atlas checks for meetings then drafts response and schdules on calendar after apporval |
+| `any invites`             | Atlas checks for meetings then drafts response and schdules on calendar after apporval |
+
+### Calendar/Gmail Setup
+Atlas uses Google Calendar/Gmail API with OAuth2. On first use a browser window will open for Google login. Approve access and the token is saved permanently — never asked again.
+
+Credentials and token are stored outside the project:
+```
+~/.config/atlas/google_calendar_credentials.json  ← download from Google Cloud Console
+~/.config/atlas/google_calendar_token.json        ← created automatically on first login
+```
+
+---
+
+### PDF Analyzer 
+| Say                        | Result                          |
+|----------------------------|---------------------------------|
+| `summarize pdf`            | Describes pdf                   |
+| `summarize the pdf`        | Describes pdf                   |
+| `read the pdf`             | Describes pdf                   |
+| `what does the pdf say`    | Describes pdf                   |
+| `summarize last pdf`       | Describes pdf                   |
+| `what's in the pdf`        | Describes pdf                   |
+| `read this pdf`            | Describes pdf                   |
+| `summarize document`       | Describes pdf                   |
+| `summarize last pdf`       | Describes pdf                   |
+| `find in the pdf`          | Finds related info in the pdf   |
+| `search the pdf`           | Finds related info in the pdf   |
+| `look for in the document` | Finds related info in the pdf   |
+| `search the pdf`           | Search for specific info in pdf |
+| `look for in the document` | Search for specific info in pdf |
+
+### PDF Setup
+Atlas uses your pypdf and Mistral running locally via Ollama.
+```bash
+ollama pull mistral
+pip install pypdf
+```
+
+---
+
+### Vision (Eyes)
 | Say | Result |
 |-----|--------|
-| `what's the capital of France` | Instant answer via phi3 |
-| `tell me a joke` | Dry British wit |
-| `how are you today` | Jarvis responds in character |
+| `what do you see` | Describes full scene |
+| `what can you see` | Describes full scene |
+| `what's on my desk` | Describes workspace |
+| `what's behind me` | Describes background |
+| `what am I holding` | Identifies object |
+| `what is this` | Identifies object |
+| `read this` | Transcribes visible text |
+| `what does this say` | Transcribes visible text |
+| `read the text on screen` | Reads monitor/screen text |
+| `is anyone there` | Detects people in frame |
+| `how many people` | Counts visible people |
+| `what am I doing` | Describes activity |
+| `what color is this` | Identifies colors |
+| `do you see a phone` | Answers yes/no vision questions |
+| `is there a X` | Answers yes/no vision questions |
+| `does this look right` | General vision question |
+
+### Vision Setup
+Atlas uses your webcam and LLaVA running locally via Ollama.
+```bash
+ollama pull llava
+pip install opencv-python
+```
+
+---
+
+## Remote Access (SSH)
+
+Atlas runs headlessly over SSH — control it from your Android phone, tablet, or any terminal.
+```bash
+python main.py --no-gui
+```
+
+### Features
+- Clean `>>` text prompt — Atlas output never interrupts your typing
+- Voice still active via desktop mic and speakers
+- State and captions printed to terminal instead of GUI
+- PyQt5 not imported — no display required
+- Type `exit`, `quit`, or `q` to stop
+
+---
+
+### Android Setup
+
+**Step 1 — Install Termux**
+Install from **F-Droid** (not Play Store — Play Store version is outdated):
+https://f-droid.org/packages/com.termux/
+
+**Step 2 — Install Tailscale (access from anywhere)**
+
+On your desktop:
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+tailscale ip  # note this IP
+```
+
+On your phone: install **Tailscale** from Play Store and sign in with the same account.
+
+Tailscale creates a private encrypted tunnel — works over WiFi, cellular, anywhere.
+
+**Step 3 — Set up one-command access**
+
+In Termux:
+```bash
+pkg update && pkg install openssh tmux
+
+# create alias
+echo "alias atlas='ssh your_username@your_tailscale_ip'" >> ~/.bashrc
+
+# auto-load on Termux startup
+echo ". ~/.bashrc" >> ~/.bash_profile
+```
+
+On your desktop, add to `~/.bashrc` so Atlas starts automatically on SSH connect:
+```bash
+nano ~/.bashrc
+```
+Add at the bottom:
+```bash
+if [ -n "$SSH_CONNECTION" ]; then
+    cd ~/dev/A.T.L.A.S.
+    source .venv/bin/activate
+    exec python main.py --no-gui
+fi
+```
+
+**Step 4 — Connect**
+
+Just type in Termux:
+```bash
+atlas
+```
+
+Atlas connects and starts automatically. Every time.
+
+---
+
+### Keep Atlas Running After Closing Termux (tmux)
+
+By default Atlas stops when you close Termux. To keep it running in the background:
+```bash
+# on desktop, start Atlas in a tmux session:
+tmux new -s atlas
+python main.py --no-gui
+
+# detach without stopping — Ctrl+B then D
+# reconnect later:
+tmux attach -t atlas
+```
+
+With tmux Atlas runs permanently on your desktop — reconnect from your phone anytime and pick up where you left off.
+
+---
+
+### Text Input Example
+```
+>> what do I have today
+[Atlas] Massage at 2:30 PM, sir.
+
+>> create a flask app
+[Atlas] classifying...
+[Atlas] Creating Flask app with common endpoints.
+[Atlas] Building it now, sir.
+[Atlas] Done, sir. Code written to workspace/flask_app.py
+
+>> exit
+[Atlas] Goodbye, sir.
+```
+
+> **Note:** `exit` stops Atlas. To disconnect without stopping Atlas, detach from tmux with `Ctrl+B D`.
+
+---
+
+## Running Atlas on Android (Standalone)
+
+Atlas can run directly on Android using proot-distro — no desktop required for basic functionality. phi3 handles fast Q&A locally on device, with optional fallback to desktop for heavy tasks.
+
+> **Tested on:** Samsung Galaxy S10+ (8GB RAM, Snapdragon 855, ARM64)
+
+---
+
+### What Works on Android
+```
+phi3:mini local inference  ✅  ~5 second responses
+Text input via >> prompt   ✅
+Calendar integration       ✅
+Gmail integration       ✅
+Gemini API                 ✅
+Brain/LLM routing          ✅
+Voice input/output         ❌  use_mock: true (text only)
+GUI orb                    ❌  --no-gui mode
+```
+
+---
+
+### Prerequisites
+- Termux installed from **F-Droid** (not Play Store)
+- At least 6GB free storage
+- 6GB+ RAM recommended (8GB ideal)
+- WiFi recommended for initial setup
+
+---
+
+### Step 1 — Install proot-distro
+```bash
+# in Termux
+pkg update && pkg install proot-distro git wget -y
+proot-distro install ubuntu
+proot-distro login ubuntu
+```
+
+---
+
+### Step 2 — Install system dependencies
+```bash
+# inside Ubuntu proot
+apt update && apt upgrade -y
+apt install python3 python3-venv python3-pip git wget \
+  portaudio19-dev python3-dev libasound2-dev \
+  libopenblas-dev software-properties-common -y
+```
+
+---
+
+### Step 3 — Install Ollama
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+
+# start Ollama in background
+ollama serve &
+
+# wait a few seconds then pull phi3
+ollama pull phi3:mini
+```
+
+> **Note:** `ollama serve` may appear to hang — it's running in background. If you see "address already in use" it's already started successfully.
+
+---
+
+### Step 4 — Clone Atlas
+```bash
+cd ~
+git clone https://github.com/sdoylelambda/A.T.L.A.S.git
+cd A.T.L.A.S
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+---
+
+### Step 5 — Install Python dependencies
+```bash
+pip install pyyaml ollama anthropic google-genai \
+  prompt-toolkit requests numpy openai-whisper \
+  faster-whisper simpleaudio piper-tts playwright \
+  keyring google-auth-oauthlib google-api-python-client \
+  opencv-python-headless
+```
+
+> **Note:** PyAudio may fail on ARM — skip it, audio is mocked on Android.
+> faiss-cpu is optional — skip if it fails, only needed for RAG/memory.
+
+---
+
+### Step 6 — Download voice model
+```bash
+mkdir -p modules/voices
+cd modules/voices
+wget https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx
+wget https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx.json
+mv en_GB-alan-medium.onnx british_man_GB-alan-medium.onnx
+mv en_GB-alan-medium.onnx.json british_man_GB-alan-medium.onnx.json
+cd ~/A.T.L.A.S
+```
+
+---
+
+### Step 7 — Configure for Android
+```yaml
+# config.yaml
+audio:
+  use_mock: true   # disables mic/speakers — use text input instead
+
+system:
+  use_gpu: false   # no GPU in proot environment
+```
+
+---
+
+### Step 8 — Run Atlas
+```bash
+ollama serve &
+python3 main.py --no-gui
+```
+
+---
+
+### Returning to Atlas
+Everything persists between sessions. To resume:
+```bash
+# in Termux
+proot-distro login ubuntu
+cd ~/A.T.L.A.S
+source .venv/bin/activate
+ollama serve &
+python3 main.py --no-gui
+```
+
+Add a shortcut alias in Ubuntu's `~/.bashrc`:
+```bash
+echo "alias atlas='cd ~/A.T.L.A.S && source .venv/bin/activate && ollama serve & && sleep 2 && python3 main.py --no-gui'" >> ~/.bashrc
+source ~/.bashrc
+```
+
+Then just type `atlas` to start.
+
+---
+
+### Memory Considerations
+```
+phi3:mini needs ~3.5GB RAM
+Close all other apps before running
+If "requires more system memory" error:
+  → close all background apps
+  → try again
+  → phi3 needs ~3.5GB free
+```
+
+---
+
+### Architecture: Android Standalone vs SSH
+```
+Android Standalone (this guide):
+  Phone runs phi3 locally
+  No desktop needed for basic commands
+  Text only — no voice
+  
+SSH to Desktop (see Remote Access section):
+  All processing on desktop GPU
+  Much faster responses
+  Voice works via desktop mic/speakers
+  Requires desktop to be on
+```
+
+For best results — use SSH for voice commands at home, standalone for text commands anywhere.
+
+---
+
+## Mobile Client (Flutter)
+
+Atlas is fully controllable from your phone over Tailscale.
+The phone handles STT and TTS on-device — only text travels over the network.
+```
+Phone mic     → on-device STT → text command
+Desktop GPU   → all AI processing (Mistral, phi3, Brain, everything)
+Phone speaker → on-device TTS speaks response
+Phone camera  → QR code setup
+```
+
+### How it works
+```
+User speaks → Flutter STT → POST /command → Atlas computer
+Atlas processes (full pipeline) →
+Response text → Flutter TTS → phone speaks
+```
+
+### Computer setup (one time)
+
+**1. Install dependencies**
+```bash
+pip install fastapi uvicorn qrcode Pillow --break-system-packages
+```
+
+**2. Generate API key**
+```bash
+openssl rand -hex 32 > ~/.config/atlas/api_key
+chmod 600 ~/.config/atlas/api_key
+```
+
+**3. Get your Tailscale IP**
+```bash
+tailscale ip -4
+```
+
+**4. Start the API server**
+```bash
+cd ~/dev/A.T.L.A.S.
+uvicorn api.fastapi_server:app --host 0.0.0.0 --port 8000
+```
+
+**5. Auto-start at boot (recommended)**
+```bash
+sudo cp api/atlas-api.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable atlas-api
+sudo systemctl start atlas-api
+sudo systemctl status atlas-api
+```
+
+### Phone setup (one time)
+https://github.com/sdoylelambda/A.T.L.A.S.-mobile
+
+---
+
+### GUI Customization for Desktop
+
+Atlas's name and all GUI colors are configurable in `config.yaml` — no code changes needed.
+```yaml
+personalize:
+  ai_assistant_name: "A.T.L.A.S."
+gui:
+  border_color: "#1a6aff"      # window border color
+  border_width: 2              # border thickness in pixels
+  background_color: "#0a0a0f"  # main background
+  text_color: "#c8d8e8"        # primary text
+  caption_color: "#8a9ab8"     # caption/status text
+  heard_color: "#4499ff"       # "heard" transcription label
+  button_bg: "#1a1a2e"         # button background
+  button_border: "#2a2a4e"     # button border
+  button_hover: "#2a2a4e"      # button hover background
+```
+
+### Notes
+- Title bar color is controlled by your desktop compositor (COSMIC, GNOME, etc.) — not configurable via Qt on Wayland
+- Canvas background updates automatically from `background_color`
+- Restart Atlas after changing colors
+- Window positioning and always-on-top not supported under Wayland by design
+- On COSMIC desktop: right-click titlebar → Sticky to pin above other windows
+- On X11: window position saves automatically every 5 seconds and restores on next launch
 
 ---
 
@@ -308,28 +914,45 @@ Jarvis will calibrate the microphone noise floor, then say **"Hello sir, what ca
 
 ```
 Your voice
-    ↓
+↓
 Whisper STT — transcribes audio to text
-    ↓
+↓
 Hallucination filter — drops repetitive/too-short/echo audio
-    ↓
+↓
 Fast keyword layer (AppLauncher)
-    ├── matched → execute instantly (open app, wake, pause, cancel)
-    └── no match ↓
+├── matched → execute instantly (open app, wake, pause, cancel)
+└── no match ↓
+Command Queue — voice keeps listening while Brain processes
+↓
+Memory Recall Pipeline (MemPalace)
+├── Semantic recall (similarity search on query)
+├── Returns relevant past memories (if any)
+└── Injects context into Brain
+↓
 phi3:mini classifier
-    ├── simple fact/conversation → answer directly (~2-4 seconds)
-    └── ESCALATE ↓
+├── simple fact/conversation → answer directly (~2-4 seconds)
+└── ESCALATE ↓
 Mistral orchestrator
-    ├── generates JSON execution plan (dynamic ctx: 1024–8192)
-    ├── speaks summary → "Shall I proceed, sir?"
-    ├── waits for voice confirmation
-    └── confirmed ↓
+├── generates JSON execution plan (dynamic ctx: 1024–8192)
+├── speaks summary → "Shall I proceed, sir?"
+├── waits for voice confirmation
+└── confirmed ↓
 ToolExecutor
-    ├── create_file, create_dir
-    ├── generate_code → DeepSeek Coder writes actual code
-    ├── read_file, run_script, list_dir, delete_file
-    └── web_search, browser_navigate, browser_search
 ```
+
+---
+
+## Command Queue
+
+Atlas processes commands concurrently — voice keeps listening while Brain is working. Say a second command while Atlas is executing the first and it will be queued and processed immediately after.
+
+```
+"create a flask app"  →  Brain starts working
+"what's 5 times 5"   →  queued while Brain works
+                         answered immediately after first command finishes
+```
+
+Commands are processed one at a time in order — no commands are dropped.
 
 ---
 
@@ -349,7 +972,7 @@ Mistral's context window scales automatically based on command complexity:
 
 ## Noise Floor Calibration
 
-Jarvis automatically calibrates microphone thresholds at startup and every 20 seconds:
+Atlas automatically calibrates microphone thresholds at startup and every 20 seconds:
 
 - Uses the **95th percentile** of samples — handles AC/fan spikes better than mean
 - Dynamically sets `start_threshold` and `stop_threshold` based on your environment
@@ -363,64 +986,327 @@ Jarvis automatically calibrates microphone thresholds at startup and every 20 se
 
 ## Plan → Confirm → Execute
 
-For any command that involves executing steps, Jarvis will:
+For any command that involves executing steps, Atlas will:
 
 1. **Speak the plan** — "Creating flask folder with backend.py inside."
 2. **Ask for confirmation** — "Shall I proceed, sir?"
 3. **Wait for your response** — say yes/yeah/do it/go ahead to confirm, anything else cancels
-4. **Execute** — runs each step, checks for cancel between steps
+4. **Execute** — runs each step, updates GUI caption with live progress, checks for cancel between steps
 5. **Report** — "Done, sir. Code written to workspace/backend.py"
 
-**File exists?** Jarvis says "backend.py already exists, sir. Say overwrite to replace it." Say overwrite/replace/yes to proceed or anything else to keep the existing file.
+**File exists?** Atlas says "backend.py already exists, sir. Say overwrite to replace it." Say overwrite/replace/yes to proceed or anything else to keep the existing file.
 
-**Slow response?** If Brain takes more than 5 seconds, Jarvis says "One moment please, sir." and continues working.
+**Slow response?** If Brain takes more than 5 seconds, Atlas says "One moment please, sir." and continues working.
 
 ---
 
-## Feature Roadmap
+## Setup Checklist
 
-### Complete
-- [x] Voice input (Whisper + Faster-Whisper hybrid STT)
-- [x] Voice output (Piper TTS)
-- [x] Basic GUI (listening, thinking, error, sleeping states)
-- [x] Wake word / sleep commands
-- [x] Fast keyword command layer
-- [x] App launching
-- [x] Browser control (Playwright) with scroll, zoom, click, navigate, YouTube
-- [x] Context-aware keyboard shortcuts
-- [x] Ollama local LLM integration
-- [x] phi3:mini fast classifier with ESCALATE guardrails
-- [x] Mistral orchestrator with structured JSON plans
-- [x] Dynamic context window sizing based on command complexity
-- [x] DeepSeek Coder for all code generation (Python, JS, HTML, CSS, Dart, etc.)
-- [x] Tool execution layer (files, folders, code, browser, web search)
-- [x] Privacy-first API permission system
-- [x] Hallucination and echo loop filters
-- [x] Echo cancellation (ears paused during TTS + buffer flush)
-- [x] Plan → Confirm → Execute flow
-- [x] File overwrite confirmation
-- [x] Cancel between execution steps
-- [x] "One moment please" for slow Brain responses
-- [x] Dynamic noise floor calibration (auto-adjusts to environment every 20s)
-- [x] ALSA stream recovery with exponential backoff
-- [x] Stream lock preventing concurrent mic access crashes (SIGABRT/SIGSEGV)
-- [x] DeepSeek explanation stripper — fluff auto-commented at bottom of file
+### System Dependencies
+- [ ] Python 3.11+
+- [ ] `pip` and `venv`
+- [ ] `ffmpeg` — required by Whisper for audio processing
+  ```bash
+  sudo apt install ffmpeg
+  ```
+- [ ] `portaudio` — required for microphone input
+  ```bash
+  sudo apt install portaudio19-dev
+  ```
+- [ ] Playwright system dependencies
+  ```bash
+  playwright install firefox
+  playwright install-deps
+  and/or then update config.yaml 'use_chrome: true', 'use_firefox: false'
+  playwright install chromium
+  playwright install-deps
+  ```
+  For Chrome update config.yaml 'use_chrome: true', 'use_firefox: false'
 
-### Planned
-- [ ] GUI update — display thought process, text field, mute button
-- [ ] Claude / Gemini API routing
-- [ ] Self-expanding fast keyword layer
-- [ ] RAG over local notes and files
-- [ ] Screen / vision support (LLaVA)
-- [ ] Android client over SSH
-- [ ] Persistent memory and user preferences
-- [ ] Push-to-talk mode
+### Ollama + Local Models
+- [ ] Install Ollama
+  ```bash
+  curl -fsSL https://ollama.com/install.sh | sh
+  ```
+- [ ] Pull Mistral (orchestrator)
+  ```bash
+  ollama pull mistral
+  ```
+- [ ] Pull phi3:mini (fast classifier)
+  ```bash
+  ollama pull phi3:mini
+  ```
+- [ ] Pull DeepSeek Coder (code generation)
+  ```bash
+  ollama pull deepseek-coder:6.7b
+  ```
+- [ ] Verify models are running
+  ```bash
+  ollama list
+  ollama run mistral "say hello"
+  ollama run phi3:mini "say hello"
+  ollama run deepseek-coder:6.7b "say hello"
+  ```
+  
+### Persistent memory 
+```bash
+pip install mempalace
+mempalace init .
+```
+
+
+### Python Environment
+- [ ] Create and activate virtual environment
+  ```bash
+  python -m venv .venv
+  source .venv/bin/activate
+  ```
+- [ ] Install Python dependencies
+  ```bash
+  pip install ollama
+  pip install openai-whisper
+  pip install faster-whisper
+  pip install piper-tts
+  pip install pyaudio
+  pip install simpleaudio
+  pip install numpy
+  pip install scipy
+  pip install PyQt5
+  pip install playwright
+  pip install pyyaml
+  pip install pytest-asyncio
+  pip install anthropic               # Claude API (optional)
+  pip install google-genai            # Gemini API (optional)
+  ```
+- [ ] Install Playwright browser
+  ```bash
+  playwright install chromium
+  ```
+
+### Configuration
+- [ ] Copy and edit config
+  ```bash
+  cp config.example.yaml config.yaml
+  ```
+- [ ] Set `audio.use_mock: false` for real microphone
+- [ ] Set `system.use_gpu: true` if you have a compatible NVIDIA GPU (sm_61+)
+
+### API Keys (Optional)
+- [ ] Anthropic (Claude) — https://console.anthropic.com
+- [ ] Google (Gemini)  — https://console.cloud.google.com
+- [ ] Set `api_models.claude.enabled: true` and/or `api_models.gemini.enabled: true` in config to activate
+
+Prompted for API key on first run. Simply paste it into the GUI. Stored securely in keychain for future use.
+### Workspace
+- [ ] `workspace/` directory is created automatically on first run
+- [ ] Add to `.gitignore`:
+  ```
+  workspace/
+  .venv/
+  config.yaml
+  .window_pos
+  ```
+  ### Browser Profile (First Run)
+Atlas uses your browser profile to have access to your accounts, history, log-ins, saved profiles, etc.
+
+None of this is stored or shared with anyone. Your data remains secure and private.
+
+To use Chrome instead, update config.yaml:
+```yaml
+browser:
+  use_chrome: true
+  use_firefox: false
+  chrome_profile_path: "/home/{user}/.config/google-chrome/atlas"
+```
+
+---
+## Response Name
+To change response from "sir" to "ma'am", "John", "Jill", etc. update response_name on config.yaml.
+To change Atlas's name, update ai_assistant_name.
+personalize:
+  ai_assistant_name: "A.T.L.A.S."
+  response_name: 'sir'
+---
+
+## config.yaml Reference
+
+```yaml
+# ---- Personalize ----
+personalize:
+  ai_assistant_name: "A.T.L.A.S."
+  response_name: 'sir'
+  # home_city: "New York"  -- for what's the weather and local based responses
+
+gui:
+  # window border
+  border_color: "#1a6aff"        # light blue
+  border_width: 3
+  # title bar / window chrome
+  title_color: "#0a1a4a"         # dark blue
+  # background
+  background_color: "#0a0a0f"
+  # text colors
+  text_color: "#c8d8e8"
+  caption_color: "#8a9ab8"
+  heard_color: "#4499ff"
+  # button colors
+  button_bg: "#1a1a2e"
+  button_border: "#2a2a4e"
+  button_hover: "#2a2a4e"
+
+# ---- Node identity ----
+node:
+  name: "{device name}"
+  role: "{device role}" # single_node | observer | brain | hands
+
+# ---- Networking (future use) ----
+network:
+  brain_ip: "127.0.0.1"
+  brain_port: 8000
+  hands_ip: "127.0.0.1"
+  hands_port: 8001
+  observer_ip: "127.0.0.1"
+  observer_port: 8002
+
+# ---- LLM (disabled for now) ----
+llm:
+  enabled: true
+  # local | remote
+  backend: "local"
+
+  models:
+    classifier:
+      name: phi3:mini
+      # contextual tokens adjust dynamically. increase for more base power at expense of speed
+      num_ctx: 2048
+      # deterministic - no creativity needed, just classify
+      temperature: 0.0
+      # hard output cap - 3 sentence max - increase for longer responses from phi3 (basic AI)
+      max_tokens: 300
+
+    orchestrator:
+      name: mistral
+      # contextual tokens adjust dynamically. increase for more base power at expense of speed
+      num_ctx: 8092
+      # low-medium - consistent JSON output, handles varied phrasing
+      temperature: 0.2
+      max_tokens: 500
+
+    code:
+      # deepseek-r1 - Deep system analysis
+      name: deepseek-coder:6.7b
+      # contextual tokens adjust dynamically. increase for more base power at expense of speed
+      num_ctx: 8092
+      # nearly deterministic - correct code over creative code
+      temperature: 0.1
+
+  api_models:
+    claude:
+      enabled: false
+      model: claude-opus-4-6
+      max_tokens: 1000
+      ask_permission: true
+    gemini:
+      enabled: true
+      model: gemini-2.5-flash
+      ask_permission: true
+  
+# ---- Integrations ----
+integrations:
+  google_calendar:
+    enabled: true
+    credentials_path: "~/.config/atlas/google_calendar_credentials.json"
+    token_path: "~/.config/atlas/google_calendar_token.json"
+  gmail:
+    enabled: true
+    check_interval_minutes: 5
+    importance_threshold: 0.7
+
+# ---- Memory ----
+memory:
+  enabled: true
+  wing: "atlas"
+  palace_path: "~/.mempalace/palace"
+
+# ---- Audio ----
+audio:
+  samplerate: 16000
+  # Max length of message that can be heard in seconds
+  duration: 30
+  mic_index: null
+  use_mock: false
+  calibration_interval: 30
+  # give up waiting to START speaking after 3s
+  pre_speech_timeout: 3.0
+  # hard cap — allows long commands
+  max_speech_duration: 25.0
+  # wait 1.5s of silence before stopping mid-speech
+  silence_seconds: 1.5
+
+transcription:
+  engine: faster-whisper
+
+# ---- Speech ----
+tts:
+  # mock TTS
+  enabled: false
+  engine: "coqui"
+  voice: "default"
+
+
+# ---- Camera vision ----
+vision:
+  enabled: true
+  camera_index: 0
+  model: llava
+  max_storage_mb: 500
+  resolution_width: 1280
+  resolution_height: 720
+
+
+# ---- Execution permissions ----
+permissions:
+  allow_file_write: true
+  # safer default
+  allow_command_exec: false
+  allow_network: false
+
+# ---- Logging ----
+logging:
+  level: "INFO"
+  file: "./logs/atlas.log"
+
+# ---- Development ----
+dev:
+  mock_mode: false
+  auto_approve: false
+
+stt:
+  language: en
+  # Length of message that can be heard in seconds
+  duration: 30
+   # tiny | base | small | medium | large
+  whisper_model: small
+  # tiny | base | small | medium | large
+  fw_model: small
+
+system:
+  cpu_threads: {number of threads}
+  use_gpu: true
+
+browser:
+  profile: "atlas"
+  chrome_profile_path: "/home/{user}/.config/google-chrome/atlas"
+  use_chrome: false
+  firefox_profile_path: "/home/{user}/.mozilla/firefox/atlas"
+  use_firefox: true
+```
 
 ---
 
 ## Troubleshooting
 
-**Jarvis mishears commands**
+**Atlas mishears commands**
 - Speak clearly and at a moderate pace
 - For file extensions say "dot p y" not "dot py"
 - Consider upgrading Whisper model from `small` to `medium` in config
@@ -445,7 +1331,7 @@ For any command that involves executing steps, Jarvis will:
 - Expected on CPU — 7B models take 20-30 seconds without GPU
 - Simple questions via phi3 should be 2-4 seconds
 - Code generation via DeepSeek takes 30-90 seconds on CPU
-- GPU upgrade (sm_70+) is the most impactful hardware improvement
+- GPU upgrade (sm_61+) is the most impactful hardware improvement
 
 **phi3 trying to handle computer tasks itself**
 - ESCALATE keyword triggers fallthrough to Mistral
@@ -460,11 +1346,67 @@ For any command that involves executing steps, Jarvis will:
 **Mistral returning truncated JSON**
 - Dynamic ctx sizing handles this automatically
 - Check `[Brain] num_ctx:` log line
-- If still occurring, increase manually in config
+- Run/update tests 'pytest test_brain_dynamic_ctx.py -v -s'
+- If still occurring, increase manually in config or 
+- Adjust filters in brain/_get_num_ctx()
 
 **"Shall I proceed" confirmation not heard**
-- Ears resumes after TTS — speak clearly after Jarvis finishes asking
-- If misheard, it will cancel — just repeat the command
+- Ears resumes after TTS — speak clearly after Atlas finishes asking
+- If misheard, it will cancel — just repeat the command or type yes in text box and click send
+
+**GUI window position not saving**
+- Position save/restore only works on X11 — not supported under Wayland by design
+- On COSMIC desktop: right-click titlebar → Sticky to pin the window
+
+**GUI loads in the middle of the screen**
+- Expected on Wayland — compositor controls window placement
+- Drag to preferred position and use compositor sticky/pin feature
+
+**Mistral returning incomplete JSON**
+- Run/update tests 'pytest test_brain_dynamic_ctx.py -v -s'
+- Drag to preferred position and use compositor sticky/pin feature
+
+---
+
+## Running Tests
+```bash
+source .venv/bin/activate
+pytest tests/ -v
+```
+For brain test or to see more details add -v flag
+```
+pytest test_brain_dynamic_ctx.py -v -s
+```
+
+### Test Structure
+```
+tests/
+├── conftest.py               # shared fixtures — mock config, mock audio, fake Observer
+├── test_brain.py             # LLM routing, plan generation, context window sizing
+├── test_brain_dynamic_ctx.py # find the minimum ctx tokens Mistral needs to return valid JSON
+├── test_calendar_module.py   # checks schedule, adds events, verifies correct parsing 
+├── test_ears.py              # noise calibration, hallucination filters
+├── test_eyes.py              # webcam capture, LLaVA analysis, storage monitoring
+├── test_launcher.py          # launching and controlling apps
+├── test_observer.py          # command routing, cancel, confirmation flow
+├── test_tool_executor.py     # file creation, code generation, plan execution
+└── test_stt.py               # transcription, echo detection.
+```
+
+### Running Specific Tests
+```bash
+pytest tests/test_brain.py -v          # brain tests only
+pytest tests/test_brain_dynamic_ctx.py -v -s # Mistral minium ctx tokens
+pytest tests/test_tool_executor.py -v  # tool executor only
+pytest -k "test_cancel" -v             # any test with "cancel" in the name
+pytest -x                              # stop on first failure
+```
+
+### Test Coverage
+```bash
+pip install pytest-cov
+pytest tests/ --cov=modules --cov-report=term-missing
+```
 
 ---
 
@@ -472,11 +1414,11 @@ For any command that involves executing steps, Jarvis will:
 
 - All processing is **local by default** — nothing leaves your machine
 - Cloud API calls (Claude, Gemini) are **disabled by default**
-- When enabled, Jarvis **asks permission before every API call**
+- When enabled, Atlas **asks permission before every API call**
 - Anthropic and Google do not use API calls to train their models by default
 
 ---
 
 ## Credits
 
-Built with: Ollama, Whisper, Faster-Whisper, Piper TTS, simpleaudio, PyAudio, Playwright, phi3:mini, Mistral 7B, DeepSeek Coder 6.7B, numpy, PyYAML
+Built with: Ollama, Whisper, Faster-Whisper, Piper TTS, simpleaudio, PyAudio, PyQt5, vispy, scipy, Playwright, NumPy, PyYAML, LLaVA, Google Calendar API, Gmail API, google-auth, opencv-python, keyring, phi3:mini, Mistral 7B, DeepSeek Coder 6.7B, Gemini 2.5 Flash
