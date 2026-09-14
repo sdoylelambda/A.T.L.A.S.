@@ -8,11 +8,11 @@ WINDOW_POS_FILE = os.path.join(os.path.dirname(__file__), "..", ".window_pos")
 IS_WAYLAND = os.environ.get("WAYLAND_DISPLAY") is not None
 
 from PyQt5.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLineEdit, QLabel, QDesktopWidget
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QScrollArea,
+    QPushButton, QLineEdit, QLabel, QDesktopWidget,
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt5.QtWidgets import QGridLayout
+from PyQt5.QtWidgets import QGridLayout, QStackedWidget
 from vispy import scene
 from scipy.spatial import cKDTree
 
@@ -230,7 +230,10 @@ class FaceController(QMainWindow):
             color=self.current_color
         )
 
-        layout.addWidget(self.canvas.native, stretch=5)
+        self.view_stack = QStackedWidget()
+        self.view_stack.addWidget(self.canvas.native)  # index 0 — orb
+        self._build_settings_panel()  # creates self.settings_panel, adds it as index 1
+        layout.addWidget(self.view_stack, stretch=5)
 
         # state label
         self.state_label = QLabel("● listening")
@@ -291,8 +294,100 @@ class FaceController(QMainWindow):
 
         layout.addLayout(io_grid)
 
+    def _build_settings_panel(self):
+        bg = self.config.get("gui", {}).get("background_color", "#0a0a0f")
+        text_color = self.config.get("gui", {}).get("text_color", "#c8d8e8")
+
+        content = QWidget()
+        content.setStyleSheet(f"background: {bg};")
+        panel_layout = QVBoxLayout(content)
+        panel_layout.setContentsMargins(16, 12, 16, 12)
+        panel_layout.setSpacing(8)
+        panel_layout.setAlignment(Qt.AlignTop)
+
+        title = QLabel("Settings")
+        title.setStyleSheet(f"color: {text_color}; font-size: 16px; font-weight: 600;")
+        panel_layout.addWidget(title)
+
+        qr_label = QLabel("Mobile Access")
+        qr_label.setStyleSheet(f"color: {text_color}; font-size: 12px; font-weight: 600;")
+        panel_layout.addWidget(qr_label)
+
+        self.qr_btn = QPushButton("Generate Mobile QR Code")
+        self.qr_btn.setObjectName("settings_action_btn")
+        self.qr_btn.clicked.connect(self._generate_mobile_qr)
+        panel_layout.addWidget(self.qr_btn)
+
+        self.qr_image_label = QLabel("")
+        self.qr_image_label.setAlignment(Qt.AlignCenter)
+        panel_layout.addWidget(self.qr_image_label)
+
+        name_label = QLabel("Address me as")
+        name_label.setStyleSheet(f"color: {text_color}; font-size: 12px; font-weight: 600;")
+        panel_layout.addWidget(name_label)
+
+        back_btn = QPushButton("← Back")
+        back_btn.setObjectName("settings_action_btn")
+        back_btn.clicked.connect(self._close_settings)
+        panel_layout.addWidget(back_btn)
+
+        scroll = QScrollArea()
+        scroll.setWidget(content)
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet(f"QScrollArea {{ background: {bg}; border: none; }}")
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        self.settings_panel = scroll
+        self.view_stack.addWidget(self.settings_panel)
+
     def _open_settings(self):
-        print("[Settings] Gear clicked — panel not built yet")
+        self.view_stack.setCurrentIndex(1)
+
+    def _close_settings(self):
+        self.view_stack.setCurrentIndex(0)
+
+    def _generate_mobile_qr(self):
+        from pathlib import Path
+        from PyQt5.QtGui import QPixmap
+
+        api_key_path = Path.home() / ".config/atlas/api_key"
+
+        if not api_key_path.exists():
+            self.qr_image_label.setText(
+                "No API key found.\nRun: openssl rand -hex 32 > ~/.config/atlas/api_key"
+            )
+            return
+
+        api_key = api_key_path.read_text().strip()
+        if not api_key:
+            self.qr_image_label.setText("API key file is empty.")
+            return
+
+        try:
+            import qrcode
+        except ImportError:
+            self.qr_image_label.setText(
+                "qrcode not installed.\nRun: pip install qrcode --break-system-packages"
+            )
+            return
+
+        qr = qrcode.QRCode(
+            version=None,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=8,
+            border=3,
+        )
+        qr.add_data(api_key)
+        qr.make(fit=True)
+
+        img = qr.make_image(fill_color="black", back_color="white")
+        qr_path = Path("/tmp/atlas_api_key_qr.png")
+        img.save(qr_path)
+
+        pixmap = QPixmap(str(qr_path))
+        self.qr_image_label.setPixmap(pixmap)
+        self.qr_image_label.setText("")
+        print(f"[Settings] QR generated — scan with Atlas mobile app. Encodes only your API key.")
 
     def _start_timer(self):
         self.timer = QTimer()
