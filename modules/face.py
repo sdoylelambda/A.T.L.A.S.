@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QLineEdit, QLabel, QDesktopWidget
 )
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QObject
-
+from PyQt5.QtWidgets import QGridLayout
 from vispy import scene
 from scipy.spatial import cKDTree
 
@@ -252,35 +252,47 @@ class FaceController(QMainWindow):
         self.caption_label.setWordWrap(True)
         layout.addWidget(self.caption_label)
 
-        # text input
-        input_layout = QHBoxLayout()
-        input_layout.setSpacing(2)
+        # input + button grid — shared columns keep both rows aligned
+        io_grid = QGridLayout()
+        io_grid.setHorizontalSpacing(2)
+        io_grid.setVerticalSpacing(2)
+
+        # row 0: text input (stretches) + send button (fixed)
         self.text_input = QLineEdit()
         self.text_input.setPlaceholderText("Type a command")
         self.text_input.returnPressed.connect(self._handle_text_command)
-        input_layout.addWidget(self.text_input)
+        io_grid.addWidget(self.text_input, 0, 0, 1, 2)
 
-        send_btn = QPushButton("Send")
+        send_btn = QPushButton("➤  Send")
+        send_btn.setObjectName("send_btn")
+        send_btn.setFixedWidth(110)
         send_btn.clicked.connect(self._handle_text_command)
-        send_btn.setFixedWidth(75)
-        input_layout.addWidget(send_btn)
-        layout.addLayout(input_layout)
+        io_grid.addWidget(send_btn, 0, 2)
 
-        # buttons
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(2)
-
+        # row 1: cancel (stretches, same column as text_input) + settings + mute
         self.cancel_btn = QPushButton("⬛  Cancel")
         self.cancel_btn.setObjectName("cancel_btn")
         self.cancel_btn.clicked.connect(self._handle_cancel)
-        btn_layout.addWidget(self.cancel_btn)
+        io_grid.addWidget(self.cancel_btn, 1, 0)
+
+        self.settings_btn = QPushButton("⚙")
+        self.settings_btn.setObjectName("settings_btn")
+        self.settings_btn.setFixedWidth(40)
+        self.settings_btn.clicked.connect(self._open_settings)
+        io_grid.addWidget(self.settings_btn, 1, 1)
 
         self.mute_btn = QPushButton("🎤  Mute")
         self.mute_btn.setObjectName("mute_btn")
+        self.mute_btn.setFixedWidth(110)
         self.mute_btn.clicked.connect(self._handle_mute)
-        btn_layout.addWidget(self.mute_btn)
+        io_grid.addWidget(self.mute_btn, 1, 2)
 
-        layout.addLayout(btn_layout)
+        io_grid.setColumnStretch(0, 1)  # text_input + cancel_btn column grows together
+
+        layout.addLayout(io_grid)
+
+    def _open_settings(self):
+        print("[Settings] Gear clicked — panel not built yet")
 
     def _start_timer(self):
         self.timer = QTimer()
