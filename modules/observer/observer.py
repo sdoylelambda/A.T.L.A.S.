@@ -125,7 +125,7 @@ class Observer:
                     # filter hallucinations
                     words = text.split()
                     unique = set(words)
-                    if len(unique) <= 2 and len(words) > 6:
+                    if len(unique) <= 2:  # and len(words) > 6:
                         print(f"[STT] Hallucination detected, skipping: {text[:50]}")
                         continue
 

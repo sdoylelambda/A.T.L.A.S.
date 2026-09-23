@@ -237,9 +237,10 @@ wrapt==2.1.2
 yacman==1.0.0
 yarl==1.23.0
 zipp==3.23.0
-
 pypdf
 mempalace
 fastapi
 bleak
 uvicorn
+slowapi==0.1.10
+python-qt5
