@@ -10,6 +10,10 @@ on:
 
 jobs:
   build:
+    defaults:
+      run:
+        working-directory: atlas
+
     strategy:
       fail-fast: false   # if one OS fails, let the others keep building
       matrix:
@@ -26,6 +30,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          path: atlas
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -92,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: ${{ matrix.asset_name }}.zip
+          path: atlas/${{ matrix.asset_name }}.zip
 
   # ---- Attaches all three builds to the GitHub Release automatically ----
   release:
