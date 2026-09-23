@@ -134,7 +134,6 @@ async def cancel_command():
     return {"status": "cancelled"}
 
 
-
 # """
 # api/fastapi_server.py
 #
