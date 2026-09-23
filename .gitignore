@@ -45,3 +45,16 @@ api/fastapi_server.py
 
 config/api_keys.py
 
+# Build files
+dist/
+build/
+*.spec
+Atlas-linux/
+Atlas-linux.zip
+Atlas-linux-split.z01
+Atlas-linux-split.z02
+Atlas-linux-split.zip
+Atlas-linux.pyz
+pyinstaller-build-venv/
+
+
