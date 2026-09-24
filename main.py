@@ -4,8 +4,8 @@ import threading
 import yaml
 import argparse
 import sys
-from pathlib import Path
 
+from pathlib import Path
 from modules.window_controller import WindowController
 
 
@@ -19,7 +19,14 @@ print("=" * 80)
 print("cwd:", os.getcwd())
 print("script:", Path(__file__).resolve())
 
-CONFIG_PATH = Path(__file__).resolve().parent / "config.yaml"
+# CONFIG_PATH = Path(__file__).resolve().parent / "config.yaml"
+# CONFIG_PATH = Path(sys.argv[0]).resolve().parent / "config.yaml"
+if getattr(sys, 'frozen', False):
+    BASE_PATH = Path(getattr(sys, '_MEIPASS'))
+else:
+    BASE_PATH = Path(__file__).resolve().parent
+
+CONFIG_PATH = BASE_PATH / "config.yaml"
 
 print("CONFIG_PATH:", CONFIG_PATH)
 print("exists:", CONFIG_PATH.exists())
@@ -168,7 +175,6 @@ if __name__ == "__main__":
         thread.start()
 
         sys.exit(qt_app.exec_())
-
 
 
 # import yaml

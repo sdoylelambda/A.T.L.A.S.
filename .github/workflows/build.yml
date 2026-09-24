@@ -1,0 +1,119 @@
+name: Build Atlas Releases
+
+# Triggers automatically when you push a version tag, e.g.:
+#   git tag v1.2.0
+#   git push origin v1.2.0
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    defaults:
+      run:
+        working-directory: atlas
+
+    strategy:
+      fail-fast: false   # if one OS fails, let the others keep building
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_name: Atlas-linux
+          - os: windows-latest
+            asset_name: Atlas-windows.exe
+          - os: macos-latest
+            asset_name: Atlas-mac
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          path: atlas
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # ---- Linux-only system dependencies ----
+      # (matches what we needed in the Docker build — gcc + portaudio + alsa)
+      - name: Install Linux system dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc portaudio19-dev libasound2-dev
+
+      # ---- macOS-only system dependencies ----
+      # PyAudio needs portaudio via Homebrew on Mac
+      - name: Install macOS system dependencies
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install portaudio
+
+      # ---- Windows notes ----
+      # PyAudio often needs a prebuilt wheel on Windows rather than compiling
+      # from source. If pip install fails here, try:
+      #   pip install pipwin && pipwin install pyaudio
+      # as a fallback step, or pin a specific PyAudio wheel version.
+
+      - name: Install Python dependencies (CPU-only torch)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements-build.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: >
+          pyinstaller --onedir --add-data "config.yaml:."
+          --add-data "modules/voices:modules/voices"
+          --collect-all vispy
+          --collect-all whisper
+          --collect-all faster_whisper
+          --collect-all uvicorn
+          --collect-all PyQt5
+          --collect-all sudachidict_core
+          --collect-all gruut_lang_de
+          --collect-all gruut_lang_es
+          --collect-all gruut_lang_fr
+          --collect-all piper
+          main.py
+
+      - name: Zip the build (Linux/Mac)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd dist
+          zip -r ../${{ matrix.asset_name }}.zip main
+          cd ..
+
+      - name: Zip the build (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          Compress-Archive -Path dist/main/* -DestinationPath ${{ matrix.asset_name }}.zip
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: atlas/${{ matrix.asset_name }}.zip
+
+  # ---- Attaches all three builds to the GitHub Release automatically ----
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create/update GitHub Release with all builds attached
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Atlas-linux/Atlas-linux.zip
+            Atlas-windows.exe/Atlas-windows.exe.zip
+            Atlas-mac/Atlas-mac.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

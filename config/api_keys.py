@@ -14,7 +14,6 @@ SERVICE_NAME = config.get("personalize", {}).get("ai_assistant_name", "ATLAS")
 
 # Next steps: Implement reset_api_key, delete_api_key and list_stored_keys.
 
-
 _key_request_callback = None
 
 def set_key_request_callback(callback):
