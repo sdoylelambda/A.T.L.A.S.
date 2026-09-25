@@ -3,6 +3,7 @@ name: Build Atlas Releases
 # Triggers automatically when you push a version tag, e.g.:
 #   git tag v1.2.0
 #   git push origin v1.2.0
+
 on:
   push:
     tags:
@@ -16,17 +17,14 @@ jobs:
         include:
           - os: ubuntu-latest
             asset_name: Atlas-linux
-
           - os: windows-latest
             asset_name: Atlas-windows
-
           - os: macos-latest
             asset_name: Atlas-mac
 
     runs-on: ${{ matrix.os }}
 
     steps:
-      # ---- Free disk space on Linux ----
       - name: Free disk space
         if: matrix.os == 'ubuntu-latest'
         uses: jlumbroso/free-disk-space@main
@@ -38,41 +36,52 @@ jobs:
           large-packages: false
           swap-storage: false
 
-      # ---- Checkout repository ----
-      - name: Checkout code
+      # Linux/macOS can use the default checkout location.
+      - name: Checkout code (Linux/macOS)
+        if: matrix.os != 'windows-latest'
         uses: actions/checkout@v4
 
-      # ---- Python ----
+      # Windows cannot use the repository name because it ends in a period.
+      - name: Checkout code (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/checkout@v4
+        with:
+          path: atlas
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # ---- Linux-only system dependencies ----
-      # Matches what we needed in the Docker build:
-      # gcc + portaudio + alsa
       - name: Install Linux system dependencies
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc portaudio19-dev libasound2-dev
 
-      # ---- macOS-only system dependencies ----
-      # PyAudio needs portaudio via Homebrew on Mac
       - name: Install macOS system dependencies
         if: matrix.os == 'macos-latest'
         run: |
           brew install portaudio
 
-      # ---- Python dependencies ----
-      - name: Install Python dependencies (CPU-only torch)
+      - name: Install Python dependencies (Linux/macOS)
+        if: matrix.os != 'windows-latest'
         run: |
           python -m pip install --upgrade pip
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements-build.txt
           pip install pyinstaller
 
-      # ---- Build Linux/macOS ----
+      - name: Install Python dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: atlas
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements-build.txt
+          pip install pyinstaller
+
       - name: Build with PyInstaller (Linux/macOS)
         if: matrix.os != 'windows-latest'
         run: >
@@ -91,9 +100,9 @@ jobs:
           --collect-all piper
           main.py
 
-      # ---- Build Windows ----
       - name: Build with PyInstaller (Windows)
         if: matrix.os == 'windows-latest'
+        working-directory: atlas
         run: >
           pyinstaller --onedir
           --add-data "config.yaml;."
@@ -110,30 +119,27 @@ jobs:
           --collect-all piper
           main.py
 
-      # ---- Zip Linux/Mac ----
       - name: Zip the build (Linux/Mac)
         if: matrix.os != 'windows-latest'
         run: |
           cd dist
           zip -r ../${{ matrix.asset_name }}.zip main
 
-      # ---- Zip Windows ----
       - name: Zip the build (Windows)
         if: matrix.os == 'windows-latest'
+        working-directory: atlas
         shell: pwsh
         run: |
           Compress-Archive `
             -Path dist/main/* `
-            -DestinationPath "${{ matrix.asset_name }}.zip"
+            -DestinationPath "../${{ matrix.asset_name }}.zip"
 
-      # ---- Upload artifact ----
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.asset_name }}.zip
 
-  # ---- Attach all three builds to the GitHub Release automatically ----
   release:
     needs: build
     runs-on: ubuntu-latest
