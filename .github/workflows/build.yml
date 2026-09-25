@@ -15,19 +15,30 @@ jobs:
         working-directory: atlas
 
     strategy:
-      fail-fast: false   # if one OS fails, let the others keep building
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             asset_name: Atlas-linux
           - os: windows-latest
-            asset_name: Atlas-windows.exe
+            asset_name: Atlas-windows
           - os: macos-latest
             asset_name: Atlas-mac
 
     runs-on: ${{ matrix.os }}
 
     steps:
+      - name: Free disk space
+        if: matrix.os == 'ubuntu-latest'
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          swap-storage: false
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -39,7 +50,8 @@ jobs:
           python-version: '3.11'
 
       # ---- Linux-only system dependencies ----
-      # (matches what we needed in the Docker build — gcc + portaudio + alsa)
+      # Matches what we needed in the Docker build:
+      # gcc + portaudio + alsa
       - name: Install Linux system dependencies
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -53,12 +65,7 @@ jobs:
         run: |
           brew install portaudio
 
-      # ---- Windows notes ----
-      # PyAudio often needs a prebuilt wheel on Windows rather than compiling
-      # from source. If pip install fails here, try:
-      #   pip install pipwin && pipwin install pyaudio
-      # as a fallback step, or pin a specific PyAudio wheel version.
-
+      # ---- Python dependencies ----
       - name: Install Python dependencies (CPU-only torch)
         run: |
           python -m pip install --upgrade pip
@@ -66,9 +73,12 @@ jobs:
           pip install -r requirements-build.txt
           pip install pyinstaller
 
-      - name: Build with PyInstaller
+      # ---- Build Linux/macOS ----
+      - name: Build with PyInstaller (Linux/macOS)
+        if: matrix.os != 'windows-latest'
         run: >
-          pyinstaller --onedir --add-data "config.yaml:."
+          pyinstaller --onedir
+          --add-data "config.yaml:."
           --add-data "modules/voices:modules/voices"
           --collect-all vispy
           --collect-all whisper
@@ -82,17 +92,40 @@ jobs:
           --collect-all piper
           main.py
 
+      # ---- Build Windows ----
+      - name: Build with PyInstaller (Windows)
+        if: matrix.os == 'windows-latest'
+        run: >
+          pyinstaller --onedir
+          --add-data "config.yaml;."
+          --add-data "modules/voices;modules/voices"
+          --collect-all vispy
+          --collect-all whisper
+          --collect-all faster_whisper
+          --collect-all uvicorn
+          --collect-all PyQt5
+          --collect-all sudachidict_core
+          --collect-all gruut_lang_de
+          --collect-all gruut_lang_es
+          --collect-all gruut_lang_fr
+          --collect-all piper
+          main.py
+
+      # ---- Zip Linux/Mac ----
       - name: Zip the build (Linux/Mac)
         if: matrix.os != 'windows-latest'
         run: |
           cd dist
           zip -r ../${{ matrix.asset_name }}.zip main
-          cd ..
 
+      # ---- Zip Windows ----
       - name: Zip the build (Windows)
         if: matrix.os == 'windows-latest'
+        shell: pwsh
         run: |
-          Compress-Archive -Path dist/main/* -DestinationPath ${{ matrix.asset_name }}.zip
+          Compress-Archive `
+            -Path dist/main/* `
+            -DestinationPath "${{ matrix.asset_name }}.zip"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -104,6 +137,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+
     steps:
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
@@ -113,7 +147,7 @@ jobs:
         with:
           files: |
             Atlas-linux/Atlas-linux.zip
-            Atlas-windows.exe/Atlas-windows.exe.zip
+            Atlas-windows/Atlas-windows.zip
             Atlas-mac/Atlas-mac.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
