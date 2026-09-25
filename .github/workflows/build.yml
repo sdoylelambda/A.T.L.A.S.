@@ -10,24 +10,23 @@ on:
 
 jobs:
   build:
-    defaults:
-      run:
-        working-directory: atlas
-
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             asset_name: Atlas-linux
+
           - os: windows-latest
             asset_name: Atlas-windows
+
           - os: macos-latest
             asset_name: Atlas-mac
 
     runs-on: ${{ matrix.os }}
 
     steps:
+      # ---- Free disk space on Linux ----
       - name: Free disk space
         if: matrix.os == 'ubuntu-latest'
         uses: jlumbroso/free-disk-space@main
@@ -39,11 +38,11 @@ jobs:
           large-packages: false
           swap-storage: false
 
+      # ---- Checkout repository ----
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          path: atlas
 
+      # ---- Python ----
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -127,13 +126,14 @@ jobs:
             -Path dist/main/* `
             -DestinationPath "${{ matrix.asset_name }}.zip"
 
+      # ---- Upload artifact ----
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: atlas/${{ matrix.asset_name }}.zip
+          path: ${{ matrix.asset_name }}.zip
 
-  # ---- Attaches all three builds to the GitHub Release automatically ----
+  # ---- Attach all three builds to the GitHub Release automatically ----
   release:
     needs: build
     runs-on: ubuntu-latest
