@@ -41,12 +41,16 @@ jobs:
         if: matrix.os != 'windows-latest'
         uses: actions/checkout@v4
 
-      # Windows cannot use the repository name because it ends in a period.
+      # Windows: repo name ends in a period, which Windows silently strips
+      # from folder names — this breaks GitHub's auto-generated
+      # D:\a\<repo>\<repo> workspace path entirely. Checkout to an absolute,
+      # repo-name-independent path instead so that broken folder is never
+      # relied upon.
       - name: Checkout code (Windows)
         if: matrix.os == 'windows-latest'
         uses: actions/checkout@v4
         with:
-          path: atlas
+          path: C:\atlas
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -74,7 +78,7 @@ jobs:
 
       - name: Install Python dependencies (Windows)
         if: matrix.os == 'windows-latest'
-        working-directory: atlas
+        working-directory: C:\atlas
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
@@ -102,7 +106,7 @@ jobs:
 
       - name: Build with PyInstaller (Windows)
         if: matrix.os == 'windows-latest'
-        working-directory: atlas
+        working-directory: C:\atlas
         run: >
           pyinstaller --onedir
           --add-data "config.yaml;."
@@ -127,18 +131,26 @@ jobs:
 
       - name: Zip the build (Windows)
         if: matrix.os == 'windows-latest'
-        working-directory: atlas
+        working-directory: C:\atlas
         shell: pwsh
         run: |
           Compress-Archive `
             -Path dist/main/* `
-            -DestinationPath "../${{ matrix.asset_name }}.zip"
+            -DestinationPath "C:\atlas\${{ matrix.asset_name }}.zip"
 
-      - name: Upload build artifact
+      - name: Upload build artifact (Linux/Mac)
+        if: matrix.os != 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.asset_name }}.zip
+
+      - name: Upload build artifact (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: C:\atlas\${{ matrix.asset_name }}.zip
 
   release:
     needs: build
