@@ -3,6 +3,7 @@ name: Build Atlas Releases
 # Triggers automatically when you push a version tag, e.g.:
 #   git tag v1.2.0
 #   git push origin v1.2.0
+
 on:
   push:
     tags:
@@ -57,8 +58,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc portaudio19-dev libasound2-dev
 
-      # ---- macOS-only system dependencies ----
-      # PyAudio needs portaudio via Homebrew on Mac
       - name: Install macOS system dependencies
         if: matrix.os == 'macos-latest'
         run: |
