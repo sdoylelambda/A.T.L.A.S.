@@ -2,6 +2,7 @@ import numpy as np
 import whisper
 import time
 import warnings
+import os
 
 from faster_whisper import WhisperModel
 
@@ -11,9 +12,21 @@ SHORT_THRESHOLD_SECONDS = 10  # use whisper for >10s, faster-whisper for shorter
 
 
 class HybridSTT:
-    def __init__(self, whisper_model="small", fw_model="small", use_gpu=False):
+    def __init__(self, whisper_model="small", fw_model="small", use_gpu=False, cpu_threads=None):
         self.debug = False
         device = "cuda" if use_gpu else "cpu"
+
+        def resolve_threads(configured=None):
+            """None/'auto'/0 -> use every available core. A number -> use that many, capped at what exists."""
+            try:
+                available = len(os.sched_getaffinity(0))  # Linux, respects container limits
+            except AttributeError:
+                available = os.cpu_count() or 1  # macOS/Windows
+            if configured in (None, "auto", 0):
+                return available
+            return max(1, min(int(configured), available))
+
+        threads = resolve_threads()
 
         print(f"[STT] Loading Whisper model {whisper_model} model...")
         self.whisper = whisper.load_model(whisper_model, device=device)
@@ -22,7 +35,8 @@ class HybridSTT:
         self.faster = WhisperModel(
             fw_model,
             device=device,
-            compute_type="int8" if not use_gpu else "float16"
+            compute_type="int8" if not use_gpu else "float16",
+            cpu_threads=threads
         )
 
     def _to_float32(self, audio_bytes):

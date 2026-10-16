@@ -58,6 +58,7 @@ class Observer:
             whisper_model=config["stt"].get("whisper_model", "small"),
             fw_model=config["stt"].get("fw_model", "small"),
             use_gpu=config["system"].get("use_gpu", False),
+            cpu_threads=config.get("system", {}).get("cpu_threads"),
         )
 
         from modules.memory import AtlasMemory
